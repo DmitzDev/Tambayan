@@ -1,73 +1,71 @@
-# Tambayan Mobile (React Native + Expo)
+# Tambayan — Campus & Community Web Application
 
-A community and campus mobile application converted from Flutter to **React Native (TypeScript) with Expo**.
-
-## 📱 Features
-
-- **Auth & Onboarding**:
-  - Elastic spring animated **Splash Screen**.
-  - **Login & Registration** tabs with ambient blurred gradient backdrop, Firebase Auth integration, and "Trending Hangouts" previews.
-- **Feed**:
-  - Real-time Firestore post subscription.
-  - Interactive post creation bar (text + image upload + privacy filter).
-  - Like toggling, comment counts, and share actions.
-- **Discovery (Explore)**:
-  - Search bar.
-  - Trending hashtag tags (`#LocalEats`, `#StreetArt`, `#WeekendVibes`, etc.).
-  - Community cards grid ("Coffee Lovers", "Urban Art Collective", "City Park Meetups").
-  - "Meet Locals" profile cards carousel with connect actions.
-  - Featured "Weekend Flea Market" spotlight event card.
-- **Notifications (Inbox)**:
-  - Filter pills for All vs. Mentions.
-  - Quoted mention cards with reply and view post actions.
-  - Photo tag notifications with thumbnail previews and like actions.
-  - Group chat mention notifications.
-- **Profile**:
-  - Scenic cover banner and circular avatar.
-  - Instant avatar picker (`expo-image-picker`) with a **privacy dialog** ("Public", "Friends", "Only me") that synchronizes the profile picture to Firestore and automatically posts the update to the community feed.
-  - Post, Follower, and Following stats counters.
-  - Tabbed views for Posts, Saved items, and Tagged photos.
-  - Sign out functionality.
+A modern, responsive, and ultra-fast web application for campus communities, built with **React**, **Vite**, and **Vanilla CSS**.
 
 ---
 
-## 🛠️ Tech Stack
+## 🎨 Design & Color Palette
 
-- **Framework**: React Native (Expo SDK 58)
-- **Language**: TypeScript
-- **Navigation**: React Navigation (Native Stack + Bottom Tabs)
-- **Backend**: Firebase Auth & Cloud Firestore
-- **Typography**: Google Fonts (Plus Jakarta Sans & Be Vietnam Pro)
-- **Icons**: Expo Vector Icons (`Ionicons`)
-- **Media**: Expo Image Picker (with Base64 encoding)
+The visual design system is directly inspired by the official **Tambayan** logo:
+- **Primary Accent**: Radiant Terracotta Coral (`#FC7847` / `#E35D2B`)
+- **Secondary Accent**: Deep Ocean Petrol Teal (`#15616C` / `#208796`)
+- **Tertiary Accent**: Warm Golden Amber (`#E5A93C`)
+- **Canvas & Surfaces**: Creamy Warm Paper (`#FBF9F4`) with full **Midnight Dark Mode** (`#0C1013`) support
+- **Typography**: Google Fonts (*Outfit* for bold display titles, *Plus Jakarta Sans* for clean body text, *Be Vietnam Pro* for badges)
 
 ---
 
-## 🚀 Getting Started
+## ⚡ High-Performance `.webp` Assets
 
-### Prerequisites
-- Node.js (v18+)
-- npm or yarn
-- Expo Go app on iOS or Android (optional, for physical device preview)
+All visual assets and media are optimized in **`.webp`** format to maximize load speeds and minimize network payload (over 90% file size reduction compared to raw PNG):
+- `app_icon.webp`
+- `background_logo.webp`
+- `logo.webp`
+- `post_cafe.webp`
+- `avatar_maya.webp` & `avatar_leo.webp`
+- `community_coffee.webp`
+- `spotlight_flea.webp`
+- `cover_profile.webp`
+- `hangout_daily.webp` & `hangout_porch.webp`
 
-### Installation
+---
+
+## 🚀 Features
+
+- 📰 **Campus Feed**:
+  - Interactive "What's on your mind?" post creation with live photo preview (.webp) and privacy selector.
+  - Reactive Like counter with particle confetti.
+  - Expandable inline comment drawer.
+  - Filter posts by trending campus hashtags.
+- 🧭 **Explore & Communities**:
+  - Student Communities showcase (*Coffee Lovers*, *Urban Art Collective*, *City Park Meetups*).
+  - "Meet Campus Locals" directory with online status indicators and connect buttons.
+- ☕ **Live Hangouts**:
+  - Campus study lounges and casual chats (*The Daily Grind*, *Central Park Porch*) with live active participant indicators.
+- 🔔 **Notifications**:
+  - Filter pills for All vs. @Mentions.
+  - Quoted reply cards, photo tags with thumbnails, and group chat mentions.
+- 👤 **My Profile**:
+  - Scenic banner and avatar uploader.
+  - Editable profile modal (name, campus department, bio).
+  - Stats breakdown (Posts, Followers, Following).
+  - Filter tabs for personal posts, saved bookmarks, and joined communities.
+- 🌓 **Theme Switcher**:
+  - One-click toggle between Warm Light Paper and Midnight Dark glassmorphism.
+
+---
+
+## 🛠️ Running Locally
 
 ```bash
-git clone git@github.com:DmitzDev/Tambayan-Mobile.git
-cd Tambayan-Mobile
+# Install dependencies
 npm install
+
+# Start Vite dev server
+npm run dev
+
+# Build production bundle
+npm run build
 ```
 
-### Running Locally
-
-```bash
-# Start the Expo development server
-npm start
-
-# Or directly target a platform:
-npm run android
-npm run ios
-npm run web
-```
-
-Scan the QR code in your terminal with the **Expo Go** app (Android) or Camera (iOS) to view the app on your mobile device.
+Open [http://localhost:3000](http://localhost:3000) in your web browser.
