@@ -47,59 +47,23 @@ export const MessengerDock: React.FC<MessengerDockProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: '20px',
-        right: '24px',
-        zIndex: 900,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-end',
-      }}
-    >
+    <div className="messenger-dock-wrapper">
       {/* Floating Messenger Icon Bubble if closed */}
       {!isOpen ? (
         <button
+          className="messenger-bubble-btn"
           onClick={() => {
             if (!currentUser) onOpenAuth();
             setIsOpen(true);
             setIsMinimized(false);
           }}
-          style={{
-            width: '56px',
-            height: '56px',
-            borderRadius: '50%',
-            backgroundColor: 'var(--primary)',
-            color: '#FFF',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: 'var(--shadow-lg)',
-            border: 'none',
-            cursor: 'pointer',
-            transition: 'transform 0.2s ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.08)')}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           title="Open Campus Messenger"
         >
           <MessageCircle size={28} />
         </button>
       ) : (
         /* Expanded Floating Messenger Box */
-        <div
-          style={{
-            width: '320px',
-            background: 'var(--surface-card)',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-lg)',
-            boxShadow: 'var(--shadow-lg)',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
+        <div className="messenger-dock-box">
           {/* Header */}
           <div
             style={{

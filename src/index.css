@@ -1173,28 +1173,196 @@ button {
   background: var(--bg-subtle);
 }
 
-/* Responsive Media Queries */
-@media (max-width: 1080px) {
+/* ==========================================================================
+   COMPREHENSIVE RESPONSIVE DESIGN (Desktop, Tablet, Mobile)
+   ========================================================================== */
+
+/* Stories Row Touch Scroll */
+.stories-scroll-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.stories-scroll-row::-webkit-scrollbar {
+  display: none;
+}
+.stories-scroll-row > * {
+  scroll-snap-align: start;
+}
+
+/* Floating Messenger Dock Styling */
+.messenger-dock-wrapper {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.messenger-bubble-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-lg);
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.messenger-bubble-btn:hover {
+  transform: scale(1.08);
+  box-shadow: var(--shadow-glow);
+}
+
+.messenger-dock-box {
+  width: 320px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Tablet Layout (<= 1120px) */
+@media (max-width: 1120px) {
   .main-wrapper {
-    grid-template-columns: 200px 1fr;
+    grid-template-columns: 220px 1fr;
+    gap: 20px;
   }
   .right-panel-col {
     display: none;
   }
 }
 
+/* Mobile Devices (<= 768px) */
 @media (max-width: 768px) {
-  .main-wrapper {
-    grid-template-columns: 1fr;
-    padding-bottom: 90px;
+  /* Navbar adjustments */
+  .navbar {
+    padding: 0 12px;
+    height: 56px;
   }
-  .sidebar-col {
+  
+  .brand-icon-box {
+    width: 38px;
+    height: 38px;
+  }
+  
+  .brand-name {
+    font-size: 20px;
+  }
+  
+  .brand-badge {
     display: none;
   }
+  
   .nav-search-bar {
     display: none;
   }
   
+  .btn-create-post {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
+  .btn-create-post span {
+    display: none;
+  }
+  
+  .nav-profile-name {
+    display: none;
+  }
+  
+  .nav-profile-pill {
+    padding: 2px;
+  }
+
+  /* Main wrapper single column layout */
+  .main-wrapper {
+    grid-template-columns: 1fr;
+    padding: 12px 10px 88px;
+    gap: 16px;
+  }
+
+  .sidebar-col {
+    display: none;
+  }
+
+  /* Post cards & feed cards */
+  .post-card {
+    padding: 14px 12px;
+    border-radius: 12px;
+    gap: 10px;
+  }
+
+  .post-media-container {
+    max-height: 340px;
+  }
+
+  .post-media-img {
+    max-height: 340px;
+  }
+
+  .feed-create-card {
+    padding: 14px 12px;
+    border-radius: 12px;
+  }
+
+  /* Modals on mobile */
+  .modal-dialog {
+    max-width: 95vw;
+    margin: 10px;
+    border-radius: 14px;
+  }
+
+  /* Reactions pop-up */
+  .reactions-popup-dock {
+    max-width: 92vw;
+    overflow-x: auto;
+    padding: 4px 8px;
+    gap: 6px;
+  }
+
+  .reaction-emoji-btn {
+    font-size: 22px !important;
+  }
+
+  /* Messenger Dock on Mobile */
+  .messenger-dock-wrapper {
+    bottom: 72px;
+    right: 14px;
+  }
+
+  .messenger-bubble-btn {
+    width: 48px;
+    height: 48px;
+  }
+
+  .messenger-dock-box {
+    width: calc(100vw - 28px);
+    max-width: 350px;
+    max-height: 65vh;
+  }
+
+  /* Explore Grid */
+  .explore-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
   /* Mobile Bottom Navigation Bar */
   .mobile-bottom-bar {
     display: flex !important;
@@ -1202,12 +1370,92 @@ button {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 64px;
+    height: 60px;
     background: var(--surface-glass);
-    backdrop-filter: blur(16px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-top: 1px solid var(--border-color);
-    z-index: 99;
+    z-index: 999;
     align-items: center;
+    justify-content: space-around;
+    padding: 0 4px;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.05);
+  }
+
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    flex: 1;
+    max-width: 75px;
+  }
+
+  .mobile-nav-item.active {
+    color: var(--primary);
+  }
+
+  .mobile-nav-item:hover {
+    color: var(--primary);
+  }
+
+  .mobile-nav-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.5px solid transparent;
+  }
+
+  .mobile-nav-item.active .mobile-nav-avatar {
+    border-color: var(--primary);
+  }
+}
+
+/* Small Smart Phones (<= 480px) */
+@media (max-width: 480px) {
+  .navbar-inner {
+    gap: 6px;
+  }
+
+  .nav-actions {
+    gap: 6px;
+  }
+
+  .theme-toggle-btn, .icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .profile-hero-content {
+    padding: 0 14px 14px;
+  }
+
+  .profile-cover-img {
+    height: 130px;
+  }
+
+  .profile-avatar-row {
+    margin-top: -36px;
+  }
+
+  .profile-main-avatar {
+    width: 76px;
+    height: 76px;
+  }
+
+  .profile-stats-bar {
+    gap: 8px;
     justify-content: space-around;
   }
 }
@@ -1215,6 +1463,7 @@ button {
 .mobile-bottom-bar {
   display: none;
 }
+
 
 /* ==========================================================================
    FACEBOOK-ENGINEERED LANDING PAGE STYLES (Tambayan Campus Network)
@@ -1830,7 +2079,7 @@ button {
 @media (max-width: 960px) {
   .fb-landing-main {
     flex-direction: column;
-    gap: 40px;
+    gap: 36px;
     padding: 40px 16px 60px;
     text-align: center;
   }
@@ -1860,3 +2109,101 @@ button {
     max-width: 400px;
   }
 }
+
+@media (max-width: 580px) {
+  .fb-landing-main {
+    padding: 24px 12px 48px;
+    gap: 24px;
+  }
+
+  .fb-brand-logo {
+    width: 46px;
+    height: 46px;
+  }
+
+  .fb-brand-text {
+    font-size: 40px;
+    letter-spacing: -1.2px;
+  }
+
+  .fb-tagline {
+    font-size: 17px;
+    line-height: 24px;
+    margin-bottom: 18px;
+  }
+
+  .fb-login-card {
+    padding: 18px 14px 22px;
+    border-radius: 8px;
+  }
+
+  .fb-input {
+    height: 46px;
+    font-size: 15px;
+    padding: 10px 14px;
+  }
+
+  .fb-btn-login {
+    height: 44px;
+    font-size: 18px;
+  }
+
+  .fb-btn-create-account {
+    height: 44px;
+    font-size: 15px;
+    padding: 0 20px;
+  }
+
+  .fb-signup-dialog {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 14px 14px 0 0;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .fb-signup-title {
+    font-size: 26px;
+  }
+
+  .fb-form-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .fb-recent-card, .fb-recent-add-card {
+    width: 125px;
+    height: 168px;
+  }
+
+  .fb-recent-avatar {
+    height: 120px;
+  }
+
+  .fb-recent-name {
+    font-size: 14px;
+    padding: 8px 6px;
+  }
+
+  .fb-footer {
+    padding: 20px 14px 24px;
+  }
+
+  .fb-languages-row {
+    gap: 8px 12px;
+    font-size: 11px;
+    justify-content: center;
+  }
+
+  .fb-links-grid {
+    gap: 6px 14px;
+    font-size: 11px;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .fb-copyright {
+    text-align: center;
+  }
+}
+

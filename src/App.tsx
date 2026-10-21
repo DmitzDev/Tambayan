@@ -15,6 +15,7 @@ import { SpotlightModal } from './components/SpotlightModal';
 import { MessengerDock } from './components/MessengerDock';
 import { AuthModal } from './components/AuthModal';
 import { LandingPage } from './components/LandingPage';
+import { Home, Compass, Coffee, Bell, User } from 'lucide-react';
 
 export const App: React.FC = () => {
   // Theme State
@@ -443,6 +444,80 @@ export const App: React.FC = () => {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
       />
+
+      {/* Mobile Bottom Navigation Bar (Facebook Mobile / iOS App Style) */}
+      <nav className="mobile-bottom-bar" aria-label="Mobile Navigation">
+        <button
+          className={`mobile-nav-item ${currentTab === 'feed' ? 'active' : ''}`}
+          onClick={() => {
+            setCurrentTab('feed');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          title="Feed"
+        >
+          <Home size={22} />
+          <span>Feed</span>
+        </button>
+
+        <button
+          className={`mobile-nav-item ${currentTab === 'explore' ? 'active' : ''}`}
+          onClick={() => {
+            setCurrentTab('explore');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          title="Explore"
+        >
+          <Compass size={22} />
+          <span>Explore</span>
+        </button>
+
+        <button
+          className={`mobile-nav-item ${currentTab === 'hangouts' ? 'active' : ''}`}
+          onClick={() => {
+            setCurrentTab('hangouts');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          title="Hangouts"
+        >
+          <Coffee size={22} />
+          <span>Hangouts</span>
+        </button>
+
+        <button
+          className={`mobile-nav-item ${currentTab === 'notifications' ? 'active' : ''}`}
+          onClick={() => {
+            setCurrentTab('notifications');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          title="Notifications"
+        >
+          <Bell size={22} />
+          <span>Alerts</span>
+        </button>
+
+        <button
+          className={`mobile-nav-item ${currentTab === 'profile' ? 'active' : ''}`}
+          onClick={() => {
+            if (!currentUser) setIsAuthOpen(true);
+            else {
+              setCurrentTab('profile');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }}
+          title="Profile"
+        >
+          {currentUser?.avatar ? (
+            <img
+              src={currentUser.avatar}
+              alt="Profile"
+              className="mobile-nav-avatar"
+            />
+          ) : (
+            <User size={22} />
+          )}
+          <span>Profile</span>
+        </button>
+      </nav>
     </div>
   );
 };

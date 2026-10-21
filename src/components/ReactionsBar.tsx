@@ -38,6 +38,17 @@ export const ReactionsBar: React.FC<ReactionsBarProps> = ({
     }, 250);
   };
 
+  let touchTimeout: any;
+  const handleTouchStart = () => {
+    touchTimeout = setTimeout(() => {
+      setShowPicker(true);
+    }, 350);
+  };
+
+  const handleTouchEnd = () => {
+    clearTimeout(touchTimeout);
+  };
+
   const totalReactions = Object.values(reactions).reduce((a, b) => a + b, 0);
 
   // Reaction badge icons
@@ -52,6 +63,8 @@ export const ReactionsBar: React.FC<ReactionsBarProps> = ({
       className="reaction-button-container"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       style={{ position: 'relative', display: 'inline-block' }}
     >
       {/* Floating Facebook Reactions Popup Bar */}
