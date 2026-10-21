@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Newspaper, Compass, Coffee, Bell, User } from 'lucide-react';
+import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
+import { auth } from './config/firebase';
+import { RealtimeService } from './services/realtimeService';
+import { Post, Story, UserAccount, ReactionType, Community, LocalProfile } from './types';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { RightPanel } from './components/RightPanel';
@@ -9,18 +12,11 @@ import { NotificationsView } from './components/NotificationsView';
 import { ProfileView } from './components/ProfileView';
 import { CreatePostModal } from './components/CreatePostModal';
 import { SpotlightModal } from './components/SpotlightModal';
-import {
-  initialPosts,
-  initialHangouts,
-  initialCommunities,
-  initialNotifications,
-  initialLocals,
-  currentUserData,
-} from './data/initialData';
-import { Post, UserProfile } from './types';
+import { MessengerDock } from './components/MessengerDock';
+import { AuthModal } from './components/AuthModal';
 
 export const App: React.FC = () => {
-  // Theme state
+  // Theme State
   const [isDark, setIsDark] = useState<boolean>(() => {
     return localStorage.getItem('tambayan-theme') === 'dark';
   });
@@ -37,77 +33,176 @@ export const App: React.FC = () => {
 
   const toggleTheme = () => setIsDark(!isDark);
 
-  // Core App State
+  // Authentication State (100% Real Firebase Auth)
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setCurrentUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || 'Campus Student',
+          avatar: firebaseUser.photoURL || '/images/app_icon.webp',
+          createdAt: Date.now(),
+        });
+      } else {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Real-time Firestore Subscriptions
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [stories, setStories] = useState<Story[]>([]);
   const [currentTab, setCurrentTab] = useState<string>('feed');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
-  const [user, setUser] = useState<UserProfile>(currentUserData);
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
-  const [hangouts, setHangouts] = useState(initialHangouts);
-  const [communities, setCommunities] = useState(initialCommunities);
-  const [notifications, setNotifications] = useState(initialNotifications);
-  const [locals, setLocals] = useState(initialLocals);
+  useEffect(() => {
+    const unsubPosts = RealtimeService.subscribePosts((livePosts) => {
+      setPosts(livePosts);
+    });
+
+    const unsubStories = RealtimeService.subscribeStories((liveStories) => {
+      setStories(liveStories);
+    });
+
+    return () => {
+      unsubPosts();
+      unsubStories();
+    };
+  }, []);
 
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
 
-  // Handlers
-  const handleLikePost = (id: string) => {
-    setPosts((prev) =>
-      prev.map((p) => {
-        if (p.id === id) {
-          const isLiked = !p.isLiked;
-          return {
-            ...p,
-            isLiked,
-            likes: isLiked ? p.likes + 1 : Math.max(0, p.likes - 1),
-          };
-        }
-        return p;
-      })
+  // Actions
+  const handleToggleReaction = async (postId: string, reaction: ReactionType, currentPost: Post) => {
+    if (!currentUser) {
+      setIsAuthOpen(true);
+      return;
+    }
+    await RealtimeService.toggleReaction(postId, currentUser.uid, reaction, currentPost);
+  };
+
+  const handleAddComment = async (postId: string, text: string, parentId?: string | null) => {
+    if (!currentUser) {
+      setIsAuthOpen(true);
+      return;
+    }
+    const targetPost = posts.find((p) => p.id === postId);
+    await RealtimeService.addComment(
+      postId,
+      currentUser,
+      text,
+      targetPost?.comments || [],
+      parentId
     );
   };
 
-  const handleCreatePost = (
+  const handleCreatePost = async (
     content: string,
-    image?: string,
-    privacy: 'Public' | 'Friends' | 'Only me' = 'Public'
+    imageWebP?: string | null,
+    privacy: 'Public' | 'Friends' | 'Only me' = 'Public',
+    tags: string[] = []
   ) => {
-    const newPost: Post = {
-      id: `post-${Date.now()}`,
-      authorName: user.name,
-      authorHandle: user.handle,
-      authorAvatar: user.avatar,
-      timeAgo: 'Just now',
-      content,
-      image,
-      likes: 1,
-      isLiked: true,
-      commentsCount: 0,
-      repostsCount: 0,
-      privacy,
-      tags: content.match(/#[a-zA-Z0-9_]+/g)?.map((t) => t.substring(1)) || ['Tambayan'],
-    };
-
-    setPosts([newPost, ...posts]);
-    setUser((prev) => ({ ...prev, postsCount: prev.postsCount + 1 }));
+    if (!currentUser) {
+      setIsAuthOpen(true);
+      return;
+    }
+    await RealtimeService.createPost(currentUser, content, imageWebP, privacy, tags);
   };
+
+  const handleSignOut = async () => {
+    await firebaseSignOut(auth);
+  };
+
+  // Static structure for Communities & Hangouts (without fake user posts)
+  const [hangouts, setHangouts] = useState([
+    {
+      id: 'hangout-1',
+      title: 'The Daily Grind Lounge',
+      subtitle: 'Chill study room & lo-fi cafe beats',
+      activeCount: 14,
+      image: '/images/hangout_daily.webp',
+      category: 'Coffee & Study',
+      isJoined: false,
+      hostName: 'CoffeeLovers UP',
+    },
+    {
+      id: 'hangout-2',
+      title: 'Central Park Porch',
+      subtitle: 'Chess, acoustic guitar & casual banter',
+      activeCount: 8,
+      image: '/images/hangout_porch.webp',
+      category: 'Acoustic & Casual',
+      isJoined: false,
+      hostName: 'Campus Music Club',
+    },
+  ]);
+
+  const [communities, setCommunities] = useState<Community[]>([
+    {
+      id: 'comm-1',
+      name: 'Coffee Lovers Society',
+      membersCount: '1.4k members',
+      image: '/images/community_coffee.webp',
+      tag: '#CoffeeGeeks',
+      color: '#FC7847',
+      description: 'For students who take their pour-overs, cold brews, and cafe-hopping seriously.',
+      isMember: true,
+    },
+    {
+      id: 'comm-2',
+      name: 'Urban Art Collective',
+      membersCount: '890 members',
+      image: '/images/post_cafe.webp',
+      tag: '#StreetArt',
+      color: '#15616C',
+      description: 'Digital illustrators, photographers, sketchers, and mural painters across campuses.',
+      isMember: false,
+    },
+    {
+      id: 'comm-3',
+      name: 'City Park Meetups',
+      membersCount: '2.1k members',
+      image: '/images/hangout_porch.webp',
+      tag: '#WeekendVibes',
+      color: '#E5A93C',
+      description: 'Casual outdoor picnics, frisbee tosses, board games, and weekend relaxation groups.',
+      isMember: false,
+    },
+  ]);
+
+  const [locals, setLocals] = useState<LocalProfile[]>([
+    {
+      id: 'loc-1',
+      name: 'Maya R.',
+      role: 'Photographer',
+      avatar: '/images/avatar_maya.webp',
+      isOnline: true,
+      isConnected: false,
+      bio: 'Documenting campus moments & sunset architecture. Always carrying 35mm film.',
+    },
+    {
+      id: 'loc-2',
+      name: 'Leo J.',
+      role: 'Local Guide',
+      avatar: '/images/avatar_leo.webp',
+      isOnline: true,
+      isConnected: false,
+      bio: 'Knows every affordable carinderia and hidden rooftop around Katipunan.',
+    },
+  ]);
 
   const handleToggleJoinHangout = (id: string) => {
     setHangouts((prev) =>
-      prev.map((h) => {
-        if (h.id === id) {
-          const isJoined = !h.isJoined;
-          return {
-            ...h,
-            isJoined,
-            activeCount: isJoined ? h.activeCount + 1 : Math.max(1, h.activeCount - 1),
-          };
-        }
-        return h;
-      })
+      prev.map((h) => (h.id === id ? { ...h, isJoined: !h.isJoined } : h))
     );
   };
 
@@ -123,15 +218,6 @@ export const App: React.FC = () => {
     );
   };
 
-  const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
-
-  const handleUpdateProfile = (updated: Partial<UserProfile>) => {
-    setUser((prev) => ({ ...prev, ...updated }));
-  };
-
-  // Search filtering
   const filteredPosts = posts.filter((p) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
@@ -142,8 +228,6 @@ export const App: React.FC = () => {
     );
   });
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
   return (
     <div className="app-layout">
       {/* Top Navigation */}
@@ -152,11 +236,24 @@ export const App: React.FC = () => {
         setCurrentTab={setCurrentTab}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        openCreateModal={() => setIsCreateModalOpen(true)}
-        user={user}
+        openCreateModal={() => {
+          if (!currentUser) setIsAuthOpen(true);
+          else setIsCreateModalOpen(true);
+        }}
+        user={{
+          name: currentUser?.displayName || 'Guest User',
+          handle: currentUser ? `@${currentUser.displayName.toLowerCase().replace(/\s+/g, '')}` : '@guest',
+          avatar: currentUser?.avatar || '/images/app_icon.webp',
+          coverImage: '/images/cover_profile.webp',
+          bio: 'Campus student exploring Tambayan',
+          campus: 'University Campus',
+          postsCount: posts.filter((p) => p.authorId === currentUser?.uid).length,
+          followersCount: 0,
+          followingCount: 0,
+        }}
         isDark={isDark}
         toggleTheme={toggleTheme}
-        unreadCount={unreadCount}
+        unreadCount={0}
       />
 
       {/* Main 3-Column Content Layout */}
@@ -165,8 +262,18 @@ export const App: React.FC = () => {
         <Sidebar
           currentTab={currentTab}
           setCurrentTab={setCurrentTab}
-          user={user}
-          unreadCount={unreadCount}
+          user={{
+            name: currentUser?.displayName || 'Guest Student',
+            handle: currentUser ? `@${currentUser.displayName.toLowerCase().replace(/\s+/g, '')}` : 'Sign in to join',
+            avatar: currentUser?.avatar || '/images/app_icon.webp',
+            coverImage: '/images/cover_profile.webp',
+            bio: 'Active Tambayan participant',
+            campus: currentUser ? 'Verified Student' : 'Welcome to Tambayan',
+            postsCount: posts.filter((p) => p.authorId === currentUser?.uid).length,
+            followersCount: 0,
+            followingCount: 0,
+          }}
+          unreadCount={0}
         />
 
         {/* Center Main View */}
@@ -174,9 +281,12 @@ export const App: React.FC = () => {
           {currentTab === 'feed' && (
             <FeedView
               posts={filteredPosts}
-              user={user}
-              onLikePost={handleLikePost}
+              currentUser={currentUser}
+              stories={stories}
+              onToggleReaction={handleToggleReaction}
+              onAddComment={handleAddComment}
               onCreatePost={handleCreatePost}
+              onOpenAuth={() => setIsAuthOpen(true)}
               selectedTag={selectedTag}
               onSelectTag={setSelectedTag}
             />
@@ -206,7 +316,7 @@ export const App: React.FC = () => {
               >
                 <h2 style={{ fontSize: '22px' }}>☕ Active Campus Hangouts</h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                  Live audio & chat lounges hosted by campus clubs, coffee aficionados, and study groups.
+                  Live audio & chat lounges hosted by student clubs, study groups, and coffee aficionados.
                 </p>
               </div>
 
@@ -229,7 +339,7 @@ export const App: React.FC = () => {
                         onClick={() => handleToggleJoinHangout(h.id)}
                         style={{ width: '100%', marginTop: '8px', padding: '10px' }}
                       >
-                        {h.isJoined ? 'Enter Lounge (You are in)' : 'Join Hangout Room'}
+                        {h.isJoined ? 'Entered Lounge (You are in)' : 'Join Hangout Room'}
                       </button>
                     </div>
                   </div>
@@ -240,16 +350,30 @@ export const App: React.FC = () => {
 
           {currentTab === 'notifications' && (
             <NotificationsView
-              notifications={notifications}
-              onMarkAllRead={handleMarkAllRead}
+              notifications={[]}
+              onMarkAllRead={() => {}}
             />
           )}
 
           {(currentTab === 'profile' || currentTab === 'saved') && (
             <ProfileView
-              user={user}
-              onUpdateProfile={handleUpdateProfile}
-              userPosts={posts.filter((p) => p.authorHandle === user.handle)}
+              user={{
+                name: currentUser?.displayName || 'Campus Student',
+                handle: currentUser ? `@${currentUser.displayName.toLowerCase().replace(/\s+/g, '')}` : '@guest',
+                avatar: currentUser?.avatar || '/images/app_icon.webp',
+                coverImage: '/images/cover_profile.webp',
+                bio: currentUser ? 'Architecture & Creative student' : 'Sign in to edit your profile',
+                campus: 'University Campus',
+                postsCount: posts.filter((p) => p.authorId === currentUser?.uid).length,
+                followersCount: 0,
+                followingCount: 0,
+              }}
+              onUpdateProfile={(updated) => {
+                if (currentUser && updated.name) {
+                  setCurrentUser({ ...currentUser, displayName: updated.name });
+                }
+              }}
+              userPosts={posts.filter((p) => p.authorId === currentUser?.uid)}
               communities={communities}
             />
           )}
@@ -265,67 +389,38 @@ export const App: React.FC = () => {
         />
       </main>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="mobile-bottom-bar">
-        {[
-          { id: 'feed', icon: Newspaper, label: 'Feed' },
-          { id: 'explore', icon: Compass, label: 'Explore' },
-          { id: 'hangouts', icon: Coffee, label: 'Hangouts' },
-          { id: 'notifications', icon: Bell, label: 'Inbox', badge: unreadCount },
-          { id: 'profile', icon: User, label: 'Profile' },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = currentTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setCurrentTab(tab.id)}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '2px',
-                color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                position: 'relative',
-              }}
-            >
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-              <span style={{ fontSize: '10px', fontWeight: isActive ? 700 : 500 }}>
-                {tab.label}
-              </span>
-              {tab.badge && tab.badge > 0 ? (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '-2px',
-                    right: '-4px',
-                    background: 'var(--primary)',
-                    color: '#FFF',
-                    fontSize: '9px',
-                    padding: '1px 5px',
-                    borderRadius: '10px',
-                    fontWeight: 700,
-                  }}
-                >
-                  {tab.badge}
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
-      </nav>
+      {/* Floating Messenger Dock (Facebook Style) */}
+      <MessengerDock
+        currentUser={currentUser}
+        onOpenAuth={() => setIsAuthOpen(true)}
+      />
 
       {/* Modals */}
       <CreatePostModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        user={user}
-        onCreatePost={handleCreatePost}
+        user={{
+          name: currentUser?.displayName || 'Student',
+          handle: '@user',
+          avatar: currentUser?.avatar || '/images/app_icon.webp',
+          coverImage: '/images/cover_profile.webp',
+          bio: '',
+          campus: '',
+          postsCount: 0,
+          followersCount: 0,
+          followingCount: 0,
+        }}
+        onCreatePost={(c, img, priv) => handleCreatePost(c, img, priv)}
       />
 
       <SpotlightModal
         isOpen={isSpotlightOpen}
         onClose={() => setIsSpotlightOpen(false)}
+      />
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
       />
     </div>
   );

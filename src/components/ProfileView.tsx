@@ -164,22 +164,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   <img src={post.authorAvatar} alt={post.authorName} className="post-author-avatar" />
                   <div className="post-author-names">
                     <span className="author-title">{post.authorName}</span>
-                    <span className="author-handle-time">{post.authorHandle} • {post.timeAgo}</span>
+                    <span className="author-handle-time">{new Date(post.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 </div>
               </div>
               <p className="post-content-text">{post.content}</p>
-              {post.image && (
+              {post.imageWebP && (
                 <div className="post-media-container">
-                  <img src={post.image} alt="post" className="post-media-img" />
+                  <img src={post.imageWebP} alt="post" className="post-media-img" />
                 </div>
               )}
               <div className="post-action-bar">
                 <span style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Heart size={16} fill="currentColor" /> {post.likes} Likes
+                  <Heart size={16} fill="currentColor" /> {Object.values(post.reactions || {}).reduce((a, b) => a + b, 0)} Reactions
                 </span>
                 <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  {post.commentsCount} Comments
+                  {post.comments ? post.comments.length : 0} Comments
                 </span>
               </div>
             </div>
