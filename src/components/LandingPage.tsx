@@ -1,10 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
-import { X, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
+import {
+  X,
+  Eye,
+  EyeOff,
+  Settings,
+  Store,
+  Bookmark,
+  Clock,
+  ArrowLeft,
+  Sun,
+  Moon,
+} from 'lucide-react';
 import { auth } from '../config/firebase';
 
 interface LandingPageProps {
@@ -19,12 +30,37 @@ interface SavedLogin {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExploreGuest }) => {
+  // Current view mode: 'profile' (matches the screenshot with Mitchelle Salazar) or 'form' (credentials input)
+  const [viewMode, setViewMode] = useState<'profile' | 'form'>('profile');
+
+  // Saved user profile (Default matches user's screenshot: Mitchelle Salazar)
+  const [savedUser, setSavedUser] = useState<SavedLogin>(() => {
+    try {
+      const stored = localStorage.getItem('tambayan_saved_logins');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+      }
+    } catch {
+      // fallback
+    }
+    return {
+      name: 'Mitchelle Salazar',
+      email: 'mitchelle.salazar@student.tambayan.edu',
+      avatar: '/images/avatar_leo.webp',
+    };
+  });
+
   // Login form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  // Settings dropdown state
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Sign up modal state
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
@@ -40,16 +76,32 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
   const [signUpError, setSignUpError] = useState<string | null>(null);
   const [isSigningUp, setIsSigningUp] = useState(false);
 
-  // Saved recent logins (like Facebook's recent logins feature)
-  const [savedLogins, setSavedLogins] = useState<SavedLogin[]>(() => {
-    try {
-      const stored = localStorage.getItem('tambayan_saved_logins');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const days = Array.from({ length: 31 }, (_, i) => String(i + 1));
+  const years = Array.from({ length: 70 }, (_, i) => String(2010 - i));
 
+  // Handle Continue button click (Profile card)
+  const handleContinue = async () => {
+    if (savedUser.email && password) {
+      setIsLoading(true);
+      try {
+        await signInWithEmailAndPassword(auth, savedUser.email, password);
+        onLoginSuccess();
+      } catch (err: any) {
+        // If password is required or failed, switch to form view with email prefilled
+        setEmail(savedUser.email);
+        setViewMode('form');
+        setLoginError('Please enter your password to continue.');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setEmail(savedUser.email);
+      setViewMode('form');
+    }
+  };
+
+  // Handle Form Submit
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
@@ -57,215 +109,399 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
 
     try {
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-      // Save to recent logins
+      // Save recent login
       const newSaved: SavedLogin = {
         email: cred.user.email || email.trim(),
         name: cred.user.displayName || email.split('@')[0],
-        avatar: cred.user.photoURL || '/images/app_icon.webp',
+        avatar: cred.user.photoURL || '/images/avatar_leo.webp',
       };
-      const updated = [newSaved, ...savedLogins.filter((s) => s.email !== newSaved.email)].slice(0, 3);
-      setSavedLogins(updated);
-      localStorage.setItem('tambayan_saved_logins', JSON.stringify(updated));
+      setSavedUser(newSaved);
+      localStorage.setItem('tambayan_saved_logins', JSON.stringify([newSaved]));
       onLoginSuccess();
     } catch (err: any) {
-      setLoginError(err.message || 'Incorrect email or password. Please try again.');
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+        setLoginError('The password you entered is incorrect. Please try again.');
+      } else if (err.code === 'auth/user-not-found') {
+        setLoginError('No account found with this email. Click "Create new account" to join!');
+      } else {
+        setLoginError(err.message || 'Login failed. Please verify your credentials.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleQuickLogin = (saved: SavedLogin) => {
-    setEmail(saved.email);
-  };
-
-  const handleRemoveSaved = (e: React.MouseEvent, emailToRemove: string) => {
-    e.stopPropagation();
-    const updated = savedLogins.filter((s) => s.email !== emailToRemove);
-    setSavedLogins(updated);
-    localStorage.setItem('tambayan_saved_logins', JSON.stringify(updated));
-  };
-
+  // Handle Sign Up
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setSignUpError(null);
     setIsSigningUp(true);
 
     try {
-      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
-      if (!fullName) throw new Error('Please enter your full name');
-
+      const fullName = `${firstName.trim()} ${lastName.trim()}`;
       const cred = await createUserWithEmailAndPassword(auth, regEmail.trim(), regPassword);
       await updateProfile(cred.user, {
         displayName: fullName,
-        photoURL: '/images/app_icon.webp',
+        photoURL: '/images/avatar_maya.webp',
       });
 
-      // Save to recent logins
       const newSaved: SavedLogin = {
         email: regEmail.trim(),
         name: fullName,
-        avatar: '/images/app_icon.webp',
+        avatar: '/images/avatar_maya.webp',
       };
-      const updated = [newSaved, ...savedLogins.filter((s) => s.email !== newSaved.email)].slice(0, 3);
-      setSavedLogins(updated);
-      localStorage.setItem('tambayan_saved_logins', JSON.stringify(updated));
+      setSavedUser(newSaved);
+      localStorage.setItem('tambayan_saved_logins', JSON.stringify([newSaved]));
 
       setIsSignUpOpen(false);
       onLoginSuccess();
     } catch (err: any) {
-      setSignUpError(err.message || 'Registration failed. Email might already be registered.');
+      if (err.code === 'auth/email-already-in-use') {
+        setSignUpError('An account with this email already exists. Try logging in.');
+      } else if (err.code === 'auth/weak-password') {
+        setSignUpError('Password should be at least 6 characters.');
+      } else {
+        setSignUpError(err.message || 'Registration failed. Please try again.');
+      }
     } finally {
       setIsSigningUp(false);
     }
   };
 
-  const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-  const days = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
-  const years = Array.from({ length: 50 }, (_, i) => (2026 - i).toString());
+  const toggleTheme = () => {
+    const nextDark = !isDarkMode;
+    setIsDarkMode(nextDark);
+    if (nextDark) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+  };
 
   return (
-    <div className="fb-landing-container">
-      <div className="fb-landing-main">
-        {/* Left Side: Brand & Recent Logins */}
-        <div className="fb-left-pane">
+    <div className="fb-modern-container">
+      {/* Top Main Section: Split Left & Right Panes */}
+      <div className="fb-modern-main">
+        {/* ==============================================================
+            LEFT PANE: Facebook Logo, Interactive Collage, & Bold Headline
+            ============================================================== */}
+        <div className="fb-modern-left-pane">
+          {/* Facebook Circular Brand Mark Icon */}
           <div className="fb-brand-header">
-            <div className="fb-logo-lockup">
-              <img src="/images/app_icon.webp" alt="Tambayan" className="fb-brand-icon" />
-              <h1 className="fb-brand-wordmark">Tambayan</h1>
-            </div>
-            <p className="fb-tagline">
-              Connect with classmates, join university tambayans, and share what's happening on your campus in real time.
-            </p>
+            <svg
+              viewBox="0 0 36 36"
+              className="fb-round-logo-svg"
+              width="44"
+              height="44"
+              fill="#0866FF"
+              aria-label="Facebook Logo"
+            >
+              <path d="M20.181 35.87C29.094 34.791 36 27.202 36 18c0-9.941-8.059-18-18-18S0 8.059 0 18c0 8.042 5.275 14.851 12.562 17.151V23.364H8.718V18h3.844v-4.086c0-3.793 2.26-5.889 5.717-5.889 1.656 0 3.388.295 3.388.295v3.725h-1.909c-1.88 0-2.467 1.167-2.467 2.366V18h4.198l-.671 5.364h-3.527v12.506c1.074.17 2.176.26 3.3.26.273 0 .543-.01.812-.03z" />
+              <path
+                fill="#ffffff"
+                d="M24.718 23.364l.671-5.364h-4.198v-3.589c0-1.199.587-2.366 2.467-2.366h1.909V8.32s-1.732-.295-3.388-.295c-3.457 0-5.717 2.096-5.717 5.889V18H8.718v5.364h3.844v12.506a18.256 18.256 0 005.62 0V23.364h3.527z"
+              />
+            </svg>
           </div>
 
-          {/* Facebook-style Recent Logins Section */}
-          {savedLogins.length > 0 ? (
-            <div className="fb-recent-logins">
-              <h4 className="fb-recent-title">Recent Logins</h4>
-              <p className="fb-recent-sub">Click your picture or add an account.</p>
-
-              <div className="fb-recent-cards-row">
-                {savedLogins.map((saved) => (
-                  <div
-                    key={saved.email}
-                    className="fb-recent-card"
-                    onClick={() => handleQuickLogin(saved)}
-                  >
-                    <button
-                      className="fb-remove-recent-btn"
-                      onClick={(e) => handleRemoveSaved(e, saved.email)}
-                      title="Remove account from this page"
-                    >
-                      <X size={14} />
-                    </button>
-                    <img src={saved.avatar} alt={saved.name} className="fb-recent-avatar" />
-                    <span className="fb-recent-name">{saved.name}</span>
-                  </div>
-                ))}
-
-                <div className="fb-recent-add-card" onClick={() => setIsSignUpOpen(true)}>
-                  <div className="fb-add-circle">
-                    <Plus size={24} color="var(--primary)" />
-                  </div>
-                  <span className="fb-add-text">Add Account</span>
-                </div>
-              </div>
+          {/* Dynamic 3D Collage Area (Exact Match to Screenshot) */}
+          <div className="fb-collage-stage">
+            {/* 1. Floating 😆 Haha Sticker */}
+            <div className="fb-sticker fb-haha-sticker" title="Haha reaction">
+              <span className="fb-emoji-char">😆</span>
             </div>
-          ) : null}
-        </div>
 
-        {/* Right Side: Login Card */}
-        <div className="fb-right-pane">
-          <div className="fb-login-card">
-            {loginError && (
-              <div className="fb-error-banner">
-                <span>{loginError}</span>
+            {/* 2. Top-Left Marketplace Craft Knot Card */}
+            <div className="fb-card-float fb-card-marketplace">
+              <div className="fb-icon-badge fb-badge-market">
+                <Store size={15} color="#fff" />
               </div>
-            )}
+              <img
+                src="/images/landing_craft.webp"
+                alt="Marketplace Knit Knot Pillow"
+                className="fb-craft-photo"
+              />
+            </div>
 
-            <form onSubmit={handleLogin} className="fb-login-form">
-              <input
-                type="text"
-                placeholder="Email address or student number"
-                className="fb-input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoFocus
+            {/* 3. Center Story Video Skater Card */}
+            <div className="fb-card-float fb-card-story-skater">
+              {/* Purple Timestamp Badge */}
+              <div className="fb-timestamp-badge">
+                <Clock size={12} color="#fff" />
+                <span>16:45</span>
+              </div>
+
+              {/* Skater Action Photo */}
+              <img
+                src="/images/landing_skater.webp"
+                alt="Student Skater Story"
+                className="fb-skater-photo"
               />
 
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Password"
-                  className="fb-input"
-                  style={{ paddingRight: '40px' }}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  className="fb-pw-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+              {/* Video Progress Bar Controls at Bottom */}
+              <div className="fb-story-controls">
+                <div className="fb-progress-track">
+                  <div className="fb-progress-fill" />
+                  <div className="fb-progress-scrubber" />
+                </div>
+                <div className="fb-story-ctrl-pills">
+                  <span className="fb-pill-dot" />
+                  <span className="fb-pill-dot" />
+                </div>
               </div>
 
-              <button type="submit" className="fb-btn-login" disabled={isLoading}>
-                {isLoading ? 'Logging in...' : 'Log In'}
-              </button>
+              {/* Floating ❤️ Heart Sticker on bottom-right */}
+              <div className="fb-sticker fb-heart-sticker" title="Love reaction">
+                <span className="fb-emoji-char">❤️</span>
+              </div>
+            </div>
 
-              <a
-                href="#forgot"
-                className="fb-forgot-link"
-                onClick={(e) => {
-                  e.preventDefault();
-                  alert('To reset your password, please contact the Tambayan student portal administrator.');
-                }}
-              >
-                Forgotten password?
-              </a>
+            {/* 4. Bottom-Left Cinema Event Ticket Card */}
+            <div className="fb-card-float fb-card-cinema-ticket">
+              <div className="fb-icon-badge fb-badge-event">
+                <Bookmark size={15} color="#fff" />
+              </div>
+              <img
+                src="/images/landing_ticket.webp"
+                alt="Campus Cinema Tickets"
+                className="fb-ticket-photo"
+              />
+              <div className="fb-ticket-skeleton">
+                <div className="fb-skeleton-line fb-skel-w1" />
+                <div className="fb-skeleton-line fb-skel-w2" />
+              </div>
+            </div>
 
-              <div className="fb-divider" />
+            {/* 5. Bottom-Right Circular Avatar with Cyan Ring */}
+            <div className="fb-avatar-ring-badge">
+              <img
+                src="/images/landing_avatar_round.webp"
+                alt="Campus Student"
+                className="fb-avatar-ring-img"
+              />
+            </div>
+          </div>
 
+          {/* Bold Headline (Exact Typography from Screenshot) */}
+          <div className="fb-headline-wrapper">
+            <h1 className="fb-headline-text">
+              Explore<br />
+              the things<br />
+              <span className="fb-headline-blue">you love</span>.
+            </h1>
+          </div>
+        </div>
+
+        {/* Vertical Divider Line */}
+        <div className="fb-vertical-divider" />
+
+        {/* ==============================================================
+            RIGHT PANE: User Profile Card / Login Form
+            ============================================================== */}
+        <div className="fb-modern-right-pane">
+          {/* Top-Right Settings Gear */}
+          <div className="fb-top-settings-anchor">
+            <button
+              className="fb-gear-btn"
+              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+              title="Settings"
+            >
+              <Settings size={22} />
+            </button>
+
+            {isSettingsOpen && (
+              <div className="fb-settings-menu">
+                <button className="fb-settings-item" onClick={toggleTheme}>
+                  {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+                  <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+                </button>
+                <button
+                  className="fb-settings-item"
+                  onClick={() => {
+                    setViewMode(viewMode === 'profile' ? 'form' : 'profile');
+                    setIsSettingsOpen(false);
+                  }}
+                >
+                  <span>{viewMode === 'profile' ? 'Switch to Form View' : 'Switch to Profile View'}</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* VIEW MODE 1: Profile Action Card (Exact Match to Screenshot) */}
+          {viewMode === 'profile' ? (
+            <div className="fb-profile-action-box">
+              {/* Circular Avatar */}
+              <div className="fb-profile-avatar-circle">
+                <img
+                  src={savedUser.avatar}
+                  alt={savedUser.name}
+                  className="fb-profile-photo"
+                />
+              </div>
+
+              {/* Profile Name */}
+              <h2 className="fb-profile-fullname">{savedUser.name}</h2>
+
+              {/* Action Buttons Stack */}
+              <div className="fb-pill-buttons-stack">
+                <button
+                  type="button"
+                  className="fb-pill-btn fb-pill-continue"
+                  onClick={handleContinue}
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Connecting...' : 'Continue'}
+                </button>
+
+                <button
+                  type="button"
+                  className="fb-pill-btn fb-pill-secondary"
+                  onClick={() => setViewMode('form')}
+                >
+                  Use another profile
+                </button>
+
+                <button
+                  type="button"
+                  className="fb-pill-btn fb-pill-outline"
+                  onClick={() => {
+                    setSignUpError(null);
+                    setIsSignUpOpen(true);
+                  }}
+                >
+                  Create new account
+                </button>
+
+                {onExploreGuest && (
+                  <button
+                    type="button"
+                    className="fb-guest-text-btn"
+                    onClick={onExploreGuest}
+                  >
+                    Explore Tambayan as Guest →
+                  </button>
+                )}
+              </div>
+
+              {/* Bottom Meta Branding */}
+              <div className="fb-meta-footer-brand">
+                <span className="fb-meta-symbol">♾</span>
+                <span className="fb-meta-label">Meta</span>
+              </div>
+            </div>
+          ) : (
+            /* VIEW MODE 2: Standard Credentials Login Card */
+            <div className="fb-form-action-box">
               <button
                 type="button"
-                className="fb-btn-create-account"
-                onClick={() => {
-                  setSignUpError(null);
-                  setIsSignUpOpen(true);
-                }}
+                className="fb-back-profile-btn"
+                onClick={() => setViewMode('profile')}
               >
-                Create new account
+                <ArrowLeft size={16} />
+                <span>Back to profile</span>
               </button>
-            </form>
-          </div>
 
-          <div className="fb-create-page-note">
-            <a href="#create-page" onClick={(e) => { e.preventDefault(); setIsSignUpOpen(true); }}>
-              <strong>Create a Tambayan</strong>
-            </a>{' '}
-            for a student council, fraternity, club, or campus org.
-          </div>
+              <h2 className="fb-form-title">Log in to Tambayan</h2>
 
-          {onExploreGuest && (
-            <button
-              type="button"
-              className="fb-guest-explore-btn"
-              onClick={onExploreGuest}
-            >
-              Explore Tambayan as Guest →
-            </button>
+              {loginError && (
+                <div className="fb-form-error-alert">
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleLogin} className="fb-modern-form">
+                <input
+                  type="text"
+                  placeholder="Email or student phone number"
+                  className="fb-modern-input"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoFocus
+                />
+
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Password"
+                    className="fb-modern-input"
+                    style={{ paddingRight: '44px' }}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="fb-eye-toggle"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  className="fb-pill-btn fb-pill-continue"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Logging in...' : 'Log In'}
+                </button>
+
+                <a
+                  href="#forgot"
+                  className="fb-forgot-password-link"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    alert('Password reset link sent to registered campus email.');
+                  }}
+                >
+                  Forgotten password?
+                </a>
+
+                <div className="fb-form-divider" />
+
+                <button
+                  type="button"
+                  className="fb-pill-btn fb-pill-outline"
+                  onClick={() => {
+                    setSignUpError(null);
+                    setIsSignUpOpen(true);
+                  }}
+                >
+                  Create new account
+                </button>
+              </form>
+
+              {/* Bottom Meta Branding */}
+              <div className="fb-meta-footer-brand" style={{ marginTop: '32px' }}>
+                <span className="fb-meta-symbol">♾</span>
+                <span className="fb-meta-label">Meta</span>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Facebook-style Sign Up Modal */}
+      {/* ==============================================================
+          BOTTOM FOOTER: Horizontal Languages Selector (Exact Match)
+          ============================================================== */}
+      <footer className="fb-modern-footer">
+        <div className="fb-languages-center-list">
+          <span className="fb-lang-current">English (US)</span>
+          <a href="#fil" className="fb-lang-link">Filipino</a>
+          <a href="#ceb" className="fb-lang-link">Bisaya</a>
+          <a href="#es" className="fb-lang-link">Español</a>
+          <a href="#ja" className="fb-lang-link">日本語</a>
+          <a href="#ko" className="fb-lang-link">한국어</a>
+          <a href="#zh" className="fb-lang-link">中文(简体)</a>
+          <a href="#more" className="fb-lang-link fb-more-langs">More languages...</a>
+        </div>
+      </footer>
+
+      {/* ==============================================================
+          FACEBOOK-STYLE SIGN UP MODAL DIALOG
+          ============================================================== */}
       {isSignUpOpen && (
         <div className="modal-backdrop" onClick={() => setIsSignUpOpen(false)}>
           <div className="fb-signup-dialog" onClick={(e) => e.stopPropagation()}>
@@ -438,48 +674,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
           </div>
         </div>
       )}
-
-      {/* Iconic Facebook Footer */}
-      <footer className="fb-footer">
-        <div className="fb-footer-inner">
-          <div className="fb-languages-row">
-            <span>English (UK)</span>
-            <a href="#fil">Filipino</a>
-            <a href="#ceb">Bisaya</a>
-            <a href="#ilo">Ilokano</a>
-            <a href="#es">Español</a>
-            <a href="#ja">日本語</a>
-            <a href="#ko">한국어</a>
-            <a href="#zh">中文(简体)</a>
-            <a href="#ar">العربية</a>
-            <button className="fb-add-lang-btn">+</button>
-          </div>
-
-          <div className="fb-footer-line" />
-
-          <div className="fb-links-grid">
-            <a href="#signup" onClick={(e) => { e.preventDefault(); setIsSignUpOpen(true); }}>Sign Up</a>
-            <a href="#login">Log In</a>
-            <a href="#messenger">Messenger</a>
-            <a href="#tambayanlite">Tambayan Lite</a>
-            <a href="#video">Video</a>
-            <a href="#places">Campuses</a>
-            <a href="#groups">Tambayans</a>
-            <a href="#marketplace">Marketplace</a>
-            <a href="#pay">Tambayan Pay</a>
-            <a href="#events">Campus Events</a>
-            <a href="#privacy">Privacy Policy</a>
-            <a href="#terms">Terms</a>
-            <a href="#help">Help Center</a>
-            <a href="#developers">Developers</a>
-            <a href="#careers">Careers</a>
-          </div>
-
-          <div className="fb-copyright">
-            Tambayan Platforms © 2026 • Crafted with pride for Filipino students & campus communities
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };
