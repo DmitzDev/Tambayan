@@ -1,25 +1,32 @@
 {
   "expo": {
-    "name": "Tambayan-Mobile",
-    "slug": "Tambayan-Mobile",
+    "name": "Tambayan",
+    "slug": "tambayan-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/app_icon.png",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#FBF9F4",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tambayan.app"
     },
     "android": {
+      "package": "com.tambayan.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#FBF9F4",
+        "foregroundImage": "./assets/images/app_icon.png"
       },
       "predictiveBackGestureEnabled": false
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app needs access to your photos to let you share posts and update your avatar."
+        }
+      ]
+    ]
   }
 }
