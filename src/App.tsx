@@ -14,6 +14,7 @@ import { CreatePostModal } from './components/CreatePostModal';
 import { SpotlightModal } from './components/SpotlightModal';
 import { MessengerDock } from './components/MessengerDock';
 import { AuthModal } from './components/AuthModal';
+import { LandingPage } from './components/LandingPage';
 
 export const App: React.FC = () => {
   // Theme State
@@ -36,6 +37,7 @@ export const App: React.FC = () => {
   // Authentication State (100% Real Firebase Auth)
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -119,7 +121,13 @@ export const App: React.FC = () => {
   };
 
   const handleSignOut = async () => {
-    await firebaseSignOut(auth);
+    try {
+      await firebaseSignOut(auth);
+      setCurrentUser(null);
+      setIsGuestMode(false);
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
   };
 
   // Static structure for Communities & Hangouts (without fake user posts)
@@ -228,6 +236,16 @@ export const App: React.FC = () => {
     );
   });
 
+  // If not logged in and not explicitly exploring as guest, render Facebook-style Landing Page
+  if (!currentUser && !isGuestMode) {
+    return (
+      <LandingPage
+        onLoginSuccess={() => setIsGuestMode(false)}
+        onExploreGuest={() => setIsGuestMode(true)}
+      />
+    );
+  }
+
   return (
     <div className="app-layout">
       {/* Top Navigation */}
@@ -251,6 +269,9 @@ export const App: React.FC = () => {
           followersCount: 0,
           followingCount: 0,
         }}
+        currentUser={currentUser}
+        onSignOut={handleSignOut}
+        onOpenAuth={() => setIsGuestMode(false)}
         isDark={isDark}
         toggleTheme={toggleTheme}
         unreadCount={0}

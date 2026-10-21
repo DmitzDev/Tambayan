@@ -1,6 +1,6 @@
 import React from 'react';
-import { Search, Plus, Bell, Sun, Moon } from 'lucide-react';
-import { UserProfile } from '../types';
+import { Search, Plus, Bell, Sun, Moon, LogOut, LogIn } from 'lucide-react';
+import { UserProfile, UserAccount } from '../types';
 
 interface NavbarProps {
   currentTab: string;
@@ -9,6 +9,9 @@ interface NavbarProps {
   setSearchQuery: (q: string) => void;
   openCreateModal: () => void;
   user: UserProfile;
+  currentUser: UserAccount | null;
+  onSignOut?: () => void;
+  onOpenAuth?: () => void;
   isDark: boolean;
   toggleTheme: () => void;
   unreadCount: number;
@@ -20,6 +23,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   setSearchQuery,
   openCreateModal,
   user,
+  currentUser,
+  onSignOut,
+  onOpenAuth,
   isDark,
   toggleTheme,
   unreadCount,
@@ -77,11 +83,49 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>Create Post</span>
           </button>
 
-          {/* User Profile Pill */}
-          <div className="nav-profile-pill" onClick={() => setCurrentTab('profile')}>
-            <img src={user.avatar} alt={user.name} className="nav-avatar-img" />
-            <span className="nav-profile-name">{user.name.split(' ')[0]}</span>
-          </div>
+          {currentUser ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {/* User Profile Pill */}
+              <div
+                className="nav-profile-pill"
+                onClick={() => setCurrentTab('profile')}
+                title="View profile"
+                style={{ cursor: 'pointer' }}
+              >
+                <img src={user.avatar} alt={user.name} className="nav-avatar-img" />
+                <span className="nav-profile-name">{user.name.split(' ')[0]}</span>
+              </div>
+
+              {/* Logout Button */}
+              {onSignOut && (
+                <button
+                  className="icon-btn"
+                  onClick={onSignOut}
+                  title="Log out of Tambayan"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  <LogOut size={18} />
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              className="btn-primary"
+              onClick={onOpenAuth}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                fontSize: '14px',
+                fontWeight: 600,
+                borderRadius: '8px',
+              }}
+            >
+              <LogIn size={16} />
+              <span>Log In</span>
+            </button>
+          )}
         </div>
       </div>
     </header>
