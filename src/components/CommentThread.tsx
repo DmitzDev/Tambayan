@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Send, CornerDownRight, X } from 'lucide-react';
 import { CommentItem, UserAccount } from '../types';
+import { formatRelativeTime } from '../utils/timeUtils';
 
 interface CommentThreadProps {
   comments: CommentItem[];
@@ -85,7 +86,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
                   </div>
                   <div style={{ display: 'flex', gap: '12px', marginTop: '4px', marginLeft: '4px' }}>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatRelativeTime(comment.createdAt)}
                     </span>
                     <button
                       onClick={() => setReplyingTo(comment)}

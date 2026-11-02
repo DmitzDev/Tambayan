@@ -18,11 +18,11 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   onOpenSpotlight,
 }) => {
   const trendingTags = [
-    { tag: 'UPDiliman', posts: '1.2k posts' },
-    { tag: 'CoffeeLovers', posts: '850 posts' },
+    { tag: 'TambayanPH', posts: '2.4k posts' },
+    { tag: 'CoffeeLovers', posts: '1.1k posts' },
+    { tag: 'FoodieFinds', posts: '890 posts' },
+    { tag: 'WeekendVibes', posts: '640 posts' },
     { tag: 'StreetArt', posts: '430 posts' },
-    { tag: 'MidnightCoffee', posts: '310 posts' },
-    { tag: 'ArchitectureFolio', posts: '220 posts' },
   ];
 
   return (
@@ -53,8 +53,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({
         </div>
 
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-          Join us this Saturday for local craft, live acoustic music, and the best artisan coffee
-          trucks on campus!
+          Join us this Saturday for local crafts, live acoustic music, food stalls, and artisan coffee trucks!
         </p>
       </div>
 

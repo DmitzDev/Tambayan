@@ -1,8 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { auth } from './config/firebase';
 import { RealtimeService } from './services/realtimeService';
-import { Post, Story, UserAccount, ReactionType, Community, LocalProfile } from './types';
+import {
+  Post,
+  Story,
+  UserAccount,
+  ReactionType,
+  Community,
+  LocalProfile,
+  NotificationItem,
+} from './types';
+import { formatRelativeTime } from './utils/timeUtils';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { RightPanel } from './components/RightPanel';
@@ -46,7 +55,7 @@ export const App: React.FC = () => {
         setCurrentUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email || '',
-          displayName: firebaseUser.displayName || 'Campus Student',
+          displayName: firebaseUser.displayName || 'Tambayan User',
           avatar: firebaseUser.photoURL || '/images/app_icon.webp',
           createdAt: Date.now(),
         });
@@ -64,6 +73,17 @@ export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>('feed');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [savedPostIds, setSavedPostIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('tambayan-saved-posts');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [readNotifIds, setReadNotifIds] = useState<Record<string, boolean>>({});
+  const [customBio, setCustomBio] = useState<string>('Creative & Coffee Enthusiast');
+  const [customLocation, setCustomLocation] = useState<string>('Metro Manila, Philippines');
 
   useEffect(() => {
     const unsubPosts = RealtimeService.subscribePosts((livePosts) => {
@@ -79,6 +99,66 @@ export const App: React.FC = () => {
       unsubStories();
     };
   }, []);
+
+  // Derive Real-time Notifications from Live Posts & Comments
+  const liveNotifications = useMemo<NotificationItem[]>(() => {
+    const items: NotificationItem[] = [];
+    posts.forEach((p) => {
+      // Comments on posts
+      (p.comments || []).forEach((c) => {
+        if (!currentUser || c.authorId !== currentUser.uid) {
+          items.push({
+            id: `notif_comm_${c.id}`,
+            type: 'tag',
+            authorName: c.authorName,
+            authorAvatar: c.authorAvatar,
+            timeAgo: formatRelativeTime(c.createdAt),
+            content: c.content,
+            previewImage: p.imageWebP || undefined,
+            read: !!readNotifIds[`notif_comm_${c.id}`],
+          });
+        }
+      });
+
+      // Recent community posts
+      if (!currentUser || p.authorId !== currentUser.uid) {
+        items.push({
+          id: `notif_post_${p.id}`,
+          type: p.content.includes('@') ? 'mention' : 'chat',
+          authorName: p.authorName,
+          authorAvatar: p.authorAvatar,
+          timeAgo: formatRelativeTime(p.createdAt),
+          content: p.content.length > 90 ? `${p.content.slice(0, 90)}...` : p.content,
+          previewImage: p.imageWebP || undefined,
+          read: !!readNotifIds[`notif_post_${p.id}`],
+        });
+      }
+    });
+    return items.slice(0, 15);
+  }, [posts, currentUser, readNotifIds]);
+
+  const unreadCount = liveNotifications.filter((n) => !n.read).length;
+
+  const handleMarkAllRead = () => {
+    const next: Record<string, boolean> = { ...readNotifIds };
+    liveNotifications.forEach((n) => {
+      next[n.id] = true;
+    });
+    setReadNotifIds(next);
+  };
+
+  const handleToggleSavePost = (postId: string) => {
+    setSavedPostIds((prev) => {
+      const exists = prev.includes(postId);
+      const updated = exists ? prev.filter((id) => id !== postId) : [...prev, postId];
+      try {
+        localStorage.setItem('tambayan-saved-posts', JSON.stringify(updated));
+      } catch {
+        // ignore storage quota errors
+      }
+      return updated;
+    });
+  };
 
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -121,6 +201,11 @@ export const App: React.FC = () => {
     await RealtimeService.createPost(currentUser, content, imageWebP, privacy, tags);
   };
 
+  const handleDeletePost = async (postId: string) => {
+    if (!currentUser) return;
+    await RealtimeService.deletePost(postId);
+  };
+
   const handleSignOut = async () => {
     try {
       await firebaseSignOut(auth);
@@ -136,22 +221,22 @@ export const App: React.FC = () => {
     {
       id: 'hangout-1',
       title: 'The Daily Grind Lounge',
-      subtitle: 'Chill study room & lo-fi cafe beats',
+      subtitle: 'Chill coworking room & lo-fi cafe beats',
       activeCount: 14,
       image: '/images/hangout_daily.webp',
-      category: 'Coffee & Study',
+      category: 'Coffee & Chill',
       isJoined: false,
-      hostName: 'CoffeeLovers UP',
+      hostName: 'CoffeeLovers PH',
     },
     {
       id: 'hangout-2',
       title: 'Central Park Porch',
-      subtitle: 'Chess, acoustic guitar & casual banter',
+      subtitle: 'Chess, acoustic guitar & casual kwentuhan',
       activeCount: 8,
       image: '/images/hangout_porch.webp',
       category: 'Acoustic & Casual',
       isJoined: false,
-      hostName: 'Campus Music Club',
+      hostName: 'Indie Music Collective',
     },
   ]);
 
@@ -163,7 +248,7 @@ export const App: React.FC = () => {
       image: '/images/community_coffee.webp',
       tag: '#CoffeeGeeks',
       color: '#FC7847',
-      description: 'For students who take their pour-overs, cold brews, and cafe-hopping seriously.',
+      description: 'For everyone who takes their pour-overs, cold brews, and cafe-hopping seriously.',
       isMember: true,
     },
     {
@@ -173,7 +258,7 @@ export const App: React.FC = () => {
       image: '/images/post_cafe.webp',
       tag: '#StreetArt',
       color: '#15616C',
-      description: 'Digital illustrators, photographers, sketchers, and mural painters across campuses.',
+      description: 'Digital illustrators, photographers, sketchers, and mural painters sharing their work.',
       isMember: false,
     },
     {
@@ -183,7 +268,7 @@ export const App: React.FC = () => {
       image: '/images/hangout_porch.webp',
       tag: '#WeekendVibes',
       color: '#E5A93C',
-      description: 'Casual outdoor picnics, frisbee tosses, board games, and weekend relaxation groups.',
+      description: 'Casual outdoor picnics, weekend markets, board games, and neighborhood hangouts.',
       isMember: false,
     },
   ]);
@@ -196,16 +281,16 @@ export const App: React.FC = () => {
       avatar: '/images/avatar_maya.webp',
       isOnline: true,
       isConnected: false,
-      bio: 'Documenting campus moments & sunset architecture. Always carrying 35mm film.',
+      bio: 'Documenting everyday street moments & sunset architecture. Always carrying 35mm film.',
     },
     {
       id: 'loc-2',
       name: 'Leo J.',
-      role: 'Local Guide',
+      role: 'Food & Travel Guide',
       avatar: '/images/avatar_leo.webp',
       isOnline: true,
       isConnected: false,
-      bio: 'Knows every affordable carinderia and hidden rooftop around Katipunan.',
+      bio: 'Knows every hidden cafe, night market, and rooftop spot around the city.',
     },
   ]);
 
@@ -243,6 +328,8 @@ export const App: React.FC = () => {
       <LandingPage
         onLoginSuccess={() => setIsGuestMode(false)}
         onExploreGuest={() => setIsGuestMode(true)}
+        isDark={isDark}
+        onToggleTheme={toggleTheme}
       />
     );
   }
@@ -264,18 +351,18 @@ export const App: React.FC = () => {
           handle: currentUser ? `@${currentUser.displayName.toLowerCase().replace(/\s+/g, '')}` : '@guest',
           avatar: currentUser?.avatar || '/images/app_icon.webp',
           coverImage: '/images/cover_profile.webp',
-          bio: 'Campus student exploring Tambayan',
-          campus: 'University Campus',
+          bio: customBio,
+          location: customLocation,
           postsCount: posts.filter((p) => p.authorId === currentUser?.uid).length,
-          followersCount: 0,
-          followingCount: 0,
+          followersCount: locals.filter((l) => l.isConnected).length,
+          followingCount: communities.filter((c) => c.isMember).length,
         }}
         currentUser={currentUser}
         onSignOut={handleSignOut}
         onOpenAuth={() => setIsGuestMode(false)}
         isDark={isDark}
         toggleTheme={toggleTheme}
-        unreadCount={0}
+        unreadCount={unreadCount}
       />
 
       {/* Main 3-Column Content Layout */}
@@ -285,17 +372,17 @@ export const App: React.FC = () => {
           currentTab={currentTab}
           setCurrentTab={setCurrentTab}
           user={{
-            name: currentUser?.displayName || 'Guest Student',
-            handle: currentUser ? `@${currentUser.displayName.toLowerCase().replace(/\s+/g, '')}` : 'Sign in to join',
+            name: currentUser?.displayName || 'Guest Visitor',
+            handle: currentUser ? `@${currentUser.displayName.toLowerCase().replace(/\s+/g, '')}` : 'Sign in to connect',
             avatar: currentUser?.avatar || '/images/app_icon.webp',
             coverImage: '/images/cover_profile.webp',
-            bio: 'Active Tambayan participant',
-            campus: currentUser ? 'Verified Student' : 'Welcome to Tambayan',
+            bio: customBio,
+            location: currentUser ? customLocation : 'Welcome to Tambayan',
             postsCount: posts.filter((p) => p.authorId === currentUser?.uid).length,
-            followersCount: 0,
-            followingCount: 0,
+            followersCount: locals.filter((l) => l.isConnected).length,
+            followingCount: communities.filter((c) => c.isMember).length,
           }}
-          unreadCount={0}
+          unreadCount={unreadCount}
         />
 
         {/* Center Main View */}
@@ -308,6 +395,9 @@ export const App: React.FC = () => {
               onToggleReaction={handleToggleReaction}
               onAddComment={handleAddComment}
               onCreatePost={handleCreatePost}
+              onDeletePost={handleDeletePost}
+              savedPostIds={savedPostIds}
+              onToggleSavePost={handleToggleSavePost}
               onOpenAuth={() => setIsAuthOpen(true)}
               selectedTag={selectedTag}
               onSelectTag={setSelectedTag}
@@ -336,9 +426,9 @@ export const App: React.FC = () => {
                   gap: '12px',
                 }}
               >
-                <h2 style={{ fontSize: '22px' }}>☕ Active Campus Hangouts</h2>
+                <h2 style={{ fontSize: '22px' }}>☕ Live Tambayan Hangouts</h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                  Live audio & chat lounges hosted by student clubs, study groups, and coffee aficionados.
+                  Live audio & chat lounges hosted by communities, creators, music lovers, and coffee aficionados.
                 </p>
               </div>
 
@@ -372,30 +462,39 @@ export const App: React.FC = () => {
 
           {currentTab === 'notifications' && (
             <NotificationsView
-              notifications={[]}
-              onMarkAllRead={() => {}}
+              notifications={liveNotifications}
+              onMarkAllRead={handleMarkAllRead}
+              onReplyClick={() => setCurrentTab('feed')}
             />
           )}
 
           {(currentTab === 'profile' || currentTab === 'saved') && (
             <ProfileView
+              initialTab={currentTab === 'saved' ? 'saved' : 'posts'}
               user={{
-                name: currentUser?.displayName || 'Campus Student',
+                name: currentUser?.displayName || 'Tambayan User',
                 handle: currentUser ? `@${currentUser.displayName.toLowerCase().replace(/\s+/g, '')}` : '@guest',
                 avatar: currentUser?.avatar || '/images/app_icon.webp',
                 coverImage: '/images/cover_profile.webp',
-                bio: currentUser ? 'Architecture & Creative student' : 'Sign in to edit your profile',
-                campus: 'University Campus',
+                bio: currentUser ? customBio : 'Sign in to customize your profile',
+                location: customLocation,
                 postsCount: posts.filter((p) => p.authorId === currentUser?.uid).length,
-                followersCount: 0,
-                followingCount: 0,
+                followersCount: locals.filter((l) => l.isConnected).length,
+                followingCount: communities.filter((c) => c.isMember).length,
               }}
               onUpdateProfile={(updated) => {
                 if (currentUser && updated.name) {
                   setCurrentUser({ ...currentUser, displayName: updated.name });
                 }
+                if (currentUser && updated.avatar) {
+                  setCurrentUser({ ...currentUser, avatar: updated.avatar });
+                }
+                if (updated.bio !== undefined) setCustomBio(updated.bio);
+                if (updated.location !== undefined) setCustomLocation(updated.location);
               }}
               userPosts={posts.filter((p) => p.authorId === currentUser?.uid)}
+              savedPosts={posts.filter((p) => savedPostIds.includes(p.id))}
+              onToggleSavePost={handleToggleSavePost}
               communities={communities}
             />
           )}
@@ -406,7 +505,10 @@ export const App: React.FC = () => {
           hangouts={hangouts}
           onToggleJoinHangout={handleToggleJoinHangout}
           selectedTag={selectedTag}
-          onSelectTag={setSelectedTag}
+          onSelectTag={(tag) => {
+            setSelectedTag(tag);
+            if (tag && currentTab !== 'feed') setCurrentTab('feed');
+          }}
           onOpenSpotlight={() => setIsSpotlightOpen(true)}
         />
       </main>
@@ -422,17 +524,17 @@ export const App: React.FC = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         user={{
-          name: currentUser?.displayName || 'Student',
+          name: currentUser?.displayName || 'Tambayan Member',
           handle: '@user',
           avatar: currentUser?.avatar || '/images/app_icon.webp',
           coverImage: '/images/cover_profile.webp',
           bio: '',
-          campus: '',
+          location: '',
           postsCount: 0,
           followersCount: 0,
           followingCount: 0,
         }}
-        onCreatePost={(c, img, priv) => handleCreatePost(c, img, priv)}
+        onCreatePost={(c, img, priv, tags) => handleCreatePost(c, img, priv, tags)}
       />
 
       <SpotlightModal

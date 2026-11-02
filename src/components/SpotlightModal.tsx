@@ -52,10 +52,10 @@ export const SpotlightModal: React.FC<SpotlightModalProps> = ({ isOpen, onClose 
 
         <div className="modal-body" style={{ gap: '14px' }}>
           <span className="spotlight-tag" style={{ alignSelf: 'flex-start' }}>Featured Event</span>
-          <h2 style={{ fontSize: '24px', fontWeight: 800 }}>Weekend Flea Market & Campus Fair</h2>
+          <h2 style={{ fontSize: '24px', fontWeight: 800 }}>Weekend Flea Market & Makers Fair</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1.6 }}>
-            Join over 50 student makers, artisan coffee roasters, vintage thrifters, and indie game
-            developers for a celebration of local youth craft. Live acoustic performances throughout the afternoon!
+            Join over 50 local makers, artisan coffee roasters, vintage thrifters, and indie
+            creators for a weekend celebration of craft and community. Live acoustic performances throughout the afternoon!
           </p>
 
           <div
@@ -79,8 +79,8 @@ export const SpotlightModal: React.FC<SpotlightModalProps> = ({ isOpen, onClose 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
               <MapPin size={18} color="var(--secondary)" />
               <div>
-                <strong>UP Sunken Garden</strong>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Open Grounds & Grandstand</p>
+                <strong>Central Park Grounds</strong>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Open Pavilion & Plaza</p>
               </div>
             </div>
           </div>

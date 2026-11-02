@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Plus, Bell, Sun, Moon, LogOut, LogIn } from 'lucide-react';
+import { Search, Plus, Bell, Sun, Moon, LogOut, LogIn, X } from 'lucide-react';
 import { UserProfile, UserAccount } from '../types';
 
 interface NavbarProps {
@@ -40,7 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
           <div className="brand-text-block">
             <span className="brand-name">Tambayan</span>
-            <span className="brand-badge">Campus Community</span>
+            <span className="brand-badge">Connect & Hangout</span>
           </div>
         </div>
 
@@ -50,10 +50,27 @@ export const Navbar: React.FC<NavbarProps> = ({
           <input
             type="text"
             className="nav-search-input"
-            placeholder="Search posts, topics, or campus hangouts..."
+            placeholder="Search Tambayan for people, posts, or groups..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                right: '12px',
+                color: 'var(--text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              title="Clear search"
+            >
+              <X size={15} />
+            </button>
+          )}
         </div>
 
         {/* Actions */}

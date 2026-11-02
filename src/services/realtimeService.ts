@@ -3,6 +3,7 @@ import {
   doc,
   addDoc,
   updateDoc,
+  deleteDoc,
   onSnapshot,
   query,
   orderBy,
@@ -25,7 +26,7 @@ export class RealtimeService {
           posts.push({
             id: docSnap.id,
             authorId: data.authorId || '',
-            authorName: data.authorName || 'Student',
+            authorName: data.authorName || 'Tambayan Member',
             authorAvatar: data.authorAvatar || '/images/app_icon.webp',
             content: data.content || '',
             imageWebP: data.imageWebP || null,
@@ -83,6 +84,12 @@ export class RealtimeService {
 
     const docRef = await addDoc(collection(db, 'posts'), postData);
     return docRef.id;
+  }
+
+  // 2b. Delete Post (Author Only)
+  static async deletePost(postId: string): Promise<void> {
+    const postRef = doc(db, 'posts', postId);
+    await deleteDoc(postRef);
   }
 
   // 3. Facebook Reactions Toggle (Like, Love, Haha, Wow, Sad, Angry)

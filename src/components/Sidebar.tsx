@@ -16,8 +16,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   unreadCount,
 }) => {
   const navItems = [
-    { id: 'feed', label: 'Campus Feed', icon: Newspaper },
-    { id: 'explore', label: 'Explore & Groups', icon: Compass },
+    { id: 'feed', label: 'News Feed', icon: Newspaper },
+    { id: 'explore', label: 'Groups & People', icon: Compass },
     { id: 'hangouts', label: 'Live Hangouts', icon: Coffee },
     { id: 'notifications', label: 'Notifications', icon: Bell, badge: unreadCount },
     { id: 'profile', label: 'My Profile', icon: User },
@@ -56,7 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-          {user.campus}
+          {user.location}
         </p>
 
         <div className="side-stats-grid">

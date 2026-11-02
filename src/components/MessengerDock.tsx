@@ -57,7 +57,7 @@ export const MessengerDock: React.FC<MessengerDockProps> = ({
             setIsOpen(true);
             setIsMinimized(false);
           }}
-          title="Open Campus Messenger"
+          title="Open Tambayan Messenger"
         >
           <MessageCircle size={28} />
         </button>
@@ -85,7 +85,7 @@ export const MessengerDock: React.FC<MessengerDockProps> = ({
                   boxShadow: '0 0 6px #4ADE80',
                 }}
               />
-              <span style={{ fontWeight: 700, fontSize: '14px' }}>Campus Chat Lounge</span>
+              <span style={{ fontWeight: 700, fontSize: '14px' }}>Tambayan Chat Lounge</span>
             </div>
 
             <div style={{ display: 'flex', gap: '6px' }}>
@@ -120,7 +120,7 @@ export const MessengerDock: React.FC<MessengerDockProps> = ({
               >
                 {messages.length === 0 ? (
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', margin: 'auto' }}>
-                    Say hello to students online!
+                    Say hello to everyone online!
                   </p>
                 ) : (
                   messages.map((m) => {

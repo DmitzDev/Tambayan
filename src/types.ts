@@ -50,7 +50,7 @@ export interface UserAccount {
   displayName: string;
   avatar: string;
   bio?: string;
-  campus?: string;
+  location?: string;
   createdAt: number;
 }
 
@@ -60,7 +60,7 @@ export interface UserProfile {
   avatar: string;
   coverImage: string;
   bio: string;
-  campus: string;
+  location: string;
   postsCount: number;
   followersCount: number;
   followingCount: number;

@@ -1,44 +1,63 @@
-import React, { useState } from 'react';
-import { Camera, Edit3, MapPin, Grid, Bookmark, Users, Heart } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Camera, Edit3, MapPin, Grid, Bookmark, Users, Heart, Trash2 } from 'lucide-react';
 import { UserProfile, Post, Community } from '../types';
+import { convertToWebP } from '../utils/webpConverter';
+import { formatRelativeTime } from '../utils/timeUtils';
 
 interface ProfileViewProps {
   user: UserProfile;
   onUpdateProfile: (updated: Partial<UserProfile>) => void;
   userPosts: Post[];
+  savedPosts?: Post[];
+  onToggleSavePost?: (postId: string) => void;
   communities: Community[];
+  initialTab?: 'posts' | 'saved' | 'communities';
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
   user,
   onUpdateProfile,
   userPosts,
+  savedPosts = [],
+  onToggleSavePost,
   communities,
+  initialTab = 'posts',
 }) => {
-  const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'communities'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'communities'>(initialTab);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(user.name);
   const [editBio, setEditBio] = useState(user.bio);
-  const [editCampus, setEditCampus] = useState(user.campus);
+  const [editLocation, setEditLocation] = useState(user.location);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    setEditName(user.name);
+    setEditBio(user.bio);
+    setEditLocation(user.location);
+  }, [user.name, user.bio, user.location]);
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateProfile({
       name: editName.trim(),
       bio: editBio.trim(),
-      campus: editCampus.trim(),
+      location: editLocation.trim(),
     });
     setIsEditing(false);
   };
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        onUpdateProfile({ avatar: event.target?.result as string });
-      };
-      reader.readAsDataURL(file);
+      try {
+        const webp = await convertToWebP(file, 400, 400, 0.85);
+        onUpdateProfile({ avatar: webp });
+      } catch {
+        // Fallback ignore
+      }
     }
   };
 
@@ -106,7 +125,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>
             <MapPin size={15} color="var(--primary)" />
-            <span>{user.campus}</span>
+            <span>{user.location}</span>
           </div>
 
           {/* Stats Bar */}
@@ -128,7 +147,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+      <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap' }}>
         <button
           onClick={() => setActiveTab('posts')}
           className={`nav-item-btn ${activeTab === 'posts' ? 'active' : ''}`}
@@ -142,7 +161,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           className={`nav-item-btn ${activeTab === 'saved' ? 'active' : ''}`}
           style={{ width: 'auto', padding: '10px 20px' }}
         >
-          <Bookmark size={18} /> Saved (4)
+          <Bookmark size={18} /> Saved ({savedPosts.length + 2})
         </button>
 
         <button
@@ -157,51 +176,102 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       {/* Tab Content */}
       {activeTab === 'posts' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {userPosts.map((post) => (
-            <div key={post.id} className="post-card">
-              <div className="post-author-row">
-                <div className="post-author-meta">
-                  <img src={post.authorAvatar} alt={post.authorName} className="post-author-avatar" />
-                  <div className="post-author-names">
-                    <span className="author-title">{post.authorName}</span>
-                    <span className="author-handle-time">{new Date(post.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          {userPosts.length === 0 ? (
+            <div
+              style={{
+                background: 'var(--surface-card)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '36px 20px',
+                textAlign: 'center',
+              }}
+            >
+              <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+                You haven't published any posts yet. Head over to the News Feed to share your first post!
+              </p>
+            </div>
+          ) : (
+            userPosts.map((post) => (
+              <div key={post.id} className="post-card">
+                <div className="post-author-row">
+                  <div className="post-author-meta">
+                    <img src={post.authorAvatar} alt={post.authorName} className="post-author-avatar" />
+                    <div className="post-author-names">
+                      <span className="author-title">{post.authorName}</span>
+                      <span className="author-handle-time">{formatRelativeTime(post.createdAt)}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <p className="post-content-text">{post.content}</p>
-              {post.imageWebP && (
-                <div className="post-media-container">
-                  <img src={post.imageWebP} alt="post" className="post-media-img" />
+                <p className="post-content-text">{post.content}</p>
+                {post.imageWebP && (
+                  <div className="post-media-container">
+                    <img src={post.imageWebP} alt="post" className="post-media-img" />
+                  </div>
+                )}
+                <div className="post-action-bar">
+                  <span style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Heart size={16} fill="currentColor" /> {Object.values(post.reactions || {}).reduce((a, b) => a + b, 0)} Reactions
+                  </span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                    {post.comments ? post.comments.length : 0} Comments
+                  </span>
                 </div>
-              )}
-              <div className="post-action-bar">
-                <span style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Heart size={16} fill="currentColor" /> {Object.values(post.reactions || {}).reduce((a, b) => a + b, 0)} Reactions
-                </span>
-                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  {post.comments ? post.comments.length : 0} Comments
-                </span>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
       {activeTab === 'saved' && (
-        <div className="explore-grid">
-          <div className="community-card">
-            <img src="/images/post_cafe.webp" alt="Saved cafe" className="community-card-banner" />
-            <div className="community-card-body">
-              <h4 className="community-card-title">Best Cafe Spots for Architecture Students</h4>
-              <p className="community-card-desc">Saved from Maya Santos • Poblacion cafe guide</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {savedPosts.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {savedPosts.map((post) => (
+                <div key={post.id} className="post-card">
+                  <div className="post-author-row">
+                    <div className="post-author-meta">
+                      <img src={post.authorAvatar} alt={post.authorName} className="post-author-avatar" />
+                      <div className="post-author-names">
+                        <span className="author-title">{post.authorName}</span>
+                        <span className="author-handle-time">{formatRelativeTime(post.createdAt)}</span>
+                      </div>
+                    </div>
+                    {onToggleSavePost && (
+                      <button
+                        className="post-icon-action active"
+                        onClick={() => onToggleSavePost(post.id)}
+                        title="Remove from Saved"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                  <p className="post-content-text">{post.content}</p>
+                  {post.imageWebP && (
+                    <div className="post-media-container">
+                      <img src={post.imageWebP} alt="Saved post" className="post-media-img" />
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          </div>
+          )}
 
-          <div className="community-card">
-            <img src="/images/spotlight_flea.webp" alt="Saved event" className="community-card-banner" />
-            <div className="community-card-body">
-              <h4 className="community-card-title">Weekend Flea Market Vendor Registration</h4>
-              <p className="community-card-desc">Saved from Campus Events Board</p>
+          <div className="explore-grid">
+            <div className="community-card">
+              <img src="/images/post_cafe.webp" alt="Saved cafe" className="community-card-banner" />
+              <div className="community-card-body">
+                <h4 className="community-card-title">Best Third-Wave Cafe Spots in the City</h4>
+                <p className="community-card-desc">Saved from Maya Santos • Poblacion cafe guide</p>
+              </div>
+            </div>
+
+            <div className="community-card">
+              <img src="/images/spotlight_flea.webp" alt="Saved event" className="community-card-banner" />
+              <div className="community-card-body">
+                <h4 className="community-card-title">Weekend Artisan Flea Market & Makers Fair</h4>
+                <p className="community-card-desc">Saved from Community Events</p>
+              </div>
             </div>
           </div>
         </div>
@@ -250,12 +320,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
                 <div>
                   <label style={{ fontSize: '13px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
-                    Campus & Department
+                    Location / Hometown
                   </label>
                   <input
                     type="text"
-                    value={editCampus}
-                    onChange={(e) => setEditCampus(e.target.value)}
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
                     className="nav-search-input"
                     style={{ paddingLeft: '14px' }}
                     required
