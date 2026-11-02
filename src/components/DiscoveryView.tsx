@@ -23,8 +23,8 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
       <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
         {[
           { id: 'all', label: '🌟 All Discoveries' },
-          { id: 'communities', label: '👥 Student Communities' },
-          { id: 'locals', label: '🤝 Meet Campus Locals' },
+          { id: 'communities', label: '👥 Communities & Groups' },
+          { id: 'locals', label: '🤝 People You May Know' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -43,16 +43,16 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
         ))}
       </div>
 
-      {/* 1. Student Communities Showcase */}
+      {/* 1. Communities Showcase */}
       {(filterCategory === 'all' || filterCategory === 'communities') && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Users size={20} color="var(--primary)" />
-              <span>Campus Communities</span>
+              <span>Featured Groups & Communities</span>
             </h3>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              {communities.length} Active Hubs
+              {communities.length} Active Groups
             </span>
           </div>
 
@@ -109,13 +109,13 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
         </section>
       )}
 
-      {/* 2. Meet Campus Locals */}
+      {/* 2. People You May Know */}
       {(filterCategory === 'all' || filterCategory === 'locals') && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Sparkles size={20} color="var(--secondary)" />
-              <span>Meet Campus Locals & Creators</span>
+              <span>People & Creators You May Know</span>
             </h3>
           </div>
 

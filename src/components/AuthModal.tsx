@@ -53,7 +53,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <img src="/images/app_icon.webp" alt="Tambayan" style={{ width: '28px', height: '28px' }} />
             <h3 style={{ fontSize: '18px' }}>
-              {isRegister ? 'Join Tambayan Community' : 'Welcome back to Tambayan'}
+              {isRegister ? 'Create a Tambayan Account' : 'Log in to Tambayan'}
             </h3>
           </div>
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }}>
@@ -106,7 +106,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 <input
                   type="email"
                   required
-                  placeholder="student@university.edu"
+                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="nav-search-input"

@@ -8,19 +8,21 @@ import {
   X,
   Eye,
   EyeOff,
-  Settings,
   Store,
   Bookmark,
   Clock,
   ArrowLeft,
   Sun,
   Moon,
+  Trash2,
 } from 'lucide-react';
 import { auth } from '../config/firebase';
 
 interface LandingPageProps {
   onLoginSuccess: () => void;
   onExploreGuest?: () => void;
+  isDark?: boolean;
+  onToggleTheme?: () => void;
 }
 
 interface SavedLogin {
@@ -29,27 +31,38 @@ interface SavedLogin {
   avatar: string;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExploreGuest }) => {
-  // Current view mode: 'profile' (matches the screenshot with Mitchelle Salazar) or 'form' (credentials input)
-  const [viewMode, setViewMode] = useState<'profile' | 'form'>('profile');
-
-  // Saved user profile (Default matches user's screenshot: Mitchelle Salazar)
-  const [savedUser, setSavedUser] = useState<SavedLogin>(() => {
+export const LandingPage: React.FC<LandingPageProps> = ({
+  onLoginSuccess,
+  onExploreGuest,
+  isDark = false,
+  onToggleTheme,
+}) => {
+  // Load real saved login from localStorage (NO dummy/fake accounts)
+  const [savedUser, setSavedUser] = useState<SavedLogin | null>(() => {
     try {
       const stored = localStorage.getItem('tambayan_saved_logins');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+        if (
+          Array.isArray(parsed) &&
+          parsed.length > 0 &&
+          parsed[0].email &&
+          parsed[0].email !== 'mitchelle.salazar@student.tambayan.edu' &&
+          parsed[0].email !== 'mitchelle.salazar@tambayan.com'
+        ) {
+          return parsed[0];
+        }
       }
     } catch {
-      // fallback
+      // ignore storage errors
     }
-    return {
-      name: 'Mitchelle Salazar',
-      email: 'mitchelle.salazar@student.tambayan.edu',
-      avatar: '/images/avatar_leo.webp',
-    };
+    return null;
   });
+
+  // Default to 'form' unless there is a genuine saved user from a previous login
+  const [viewMode, setViewMode] = useState<'profile' | 'form'>(() =>
+    savedUser ? 'profile' : 'form'
+  );
 
   // Login form state
   const [email, setEmail] = useState('');
@@ -57,10 +70,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-
-  // Settings dropdown state
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [activeLang, setActiveLang] = useState('English (US)');
 
   // Sign up modal state
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
@@ -70,35 +81,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
   const [regPassword, setRegPassword] = useState('');
   const [birthMonth, setBirthMonth] = useState('Oct');
   const [birthDay, setBirthDay] = useState('21');
-  const [birthYear, setBirthYear] = useState('2004');
+  const [birthYear, setBirthYear] = useState('2000');
   const [gender, setGender] = useState('female');
-  const [campus, setCampus] = useState('UP Diliman');
   const [signUpError, setSignUpError] = useState<string | null>(null);
   const [isSigningUp, setIsSigningUp] = useState(false);
 
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const days = Array.from({ length: 31 }, (_, i) => String(i + 1));
-  const years = Array.from({ length: 70 }, (_, i) => String(2010 - i));
+  const years = Array.from({ length: 80 }, (_, i) => String(2012 - i));
 
-  // Handle Continue button click (Profile card)
-  const handleContinue = async () => {
-    if (savedUser.email && password) {
-      setIsLoading(true);
-      try {
-        await signInWithEmailAndPassword(auth, savedUser.email, password);
-        onLoginSuccess();
-      } catch (err: any) {
-        // If password is required or failed, switch to form view with email prefilled
-        setEmail(savedUser.email);
-        setViewMode('form');
-        setLoginError('Please enter your password to continue.');
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
+  // Handle Continue button click on a real saved profile card
+  const handleContinue = () => {
+    if (savedUser?.email) {
       setEmail(savedUser.email);
       setViewMode('form');
     }
+  };
+
+  const handleRemoveSavedProfile = () => {
+    localStorage.removeItem('tambayan_saved_logins');
+    setSavedUser(null);
+    setViewMode('form');
   };
 
   // Handle Form Submit
@@ -109,18 +112,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
 
     try {
       const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-      // Save recent login
       const newSaved: SavedLogin = {
         email: cred.user.email || email.trim(),
         name: cred.user.displayName || email.split('@')[0],
-        avatar: cred.user.photoURL || '/images/avatar_leo.webp',
+        avatar: cred.user.photoURL || '/images/app_icon.webp',
       };
       setSavedUser(newSaved);
       localStorage.setItem('tambayan_saved_logins', JSON.stringify([newSaved]));
       onLoginSuccess();
     } catch (err: any) {
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-        setLoginError('The password you entered is incorrect. Please try again.');
+        setLoginError('The email or password you entered is incorrect. Please try again.');
       } else if (err.code === 'auth/user-not-found') {
         setLoginError('No account found with this email. Click "Create new account" to join!');
       } else {
@@ -168,73 +170,73 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
     }
   };
 
-  const toggleTheme = () => {
-    const nextDark = !isDarkMode;
-    setIsDarkMode(nextDark);
-    if (nextDark) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-    }
-  };
+  const languages = [
+    'English (US)',
+    'Filipino',
+    'Bisaya',
+    'Ilocano',
+    'Hiligaynon',
+    'Español',
+    'Français',
+    'Deutsch',
+  ];
 
   return (
     <div className="fb-modern-container">
       {/* Top Main Section: Split Left & Right Panes */}
       <div className="fb-modern-main">
         {/* ==============================================================
-            LEFT PANE: Facebook Logo, Interactive Collage, & Bold Headline
+            LEFT PANE: Tambayan Brand Mark, Interactive Collage, & Headline
             ============================================================== */}
         <div className="fb-modern-left-pane">
-          {/* Facebook Circular Brand Mark Icon */}
-          <div className="fb-brand-header">
-            <svg
-              viewBox="0 0 36 36"
-              className="fb-round-logo-svg"
-              width="44"
-              height="44"
-              fill="#0866FF"
-              aria-label="Facebook Logo"
-            >
-              <path d="M20.181 35.87C29.094 34.791 36 27.202 36 18c0-9.941-8.059-18-18-18S0 8.059 0 18c0 8.042 5.275 14.851 12.562 17.151V23.364H8.718V18h3.844v-4.086c0-3.793 2.26-5.889 5.717-5.889 1.656 0 3.388.295 3.388.295v3.725h-1.909c-1.88 0-2.467 1.167-2.467 2.366V18h4.198l-.671 5.364h-3.527v12.506c1.074.17 2.176.26 3.3.26.273 0 .543-.01.812-.03z" />
-              <path
-                fill="#ffffff"
-                d="M24.718 23.364l.671-5.364h-4.198v-3.589c0-1.199.587-2.366 2.467-2.366h1.909V8.32s-1.732-.295-3.388-.295c-3.457 0-5.717 2.096-5.717 5.889V18H8.718v5.364h3.844v12.506a18.256 18.256 0 005.62 0V23.364h3.527z"
+          {/* Tambayan Official Brand Mark */}
+          <div className="fb-brand-header" style={{ gap: '12px' }}>
+            <div className="brand-icon-box" style={{ width: '48px', height: '48px' }}>
+              <img
+                src="/images/app_icon.webp"
+                alt="Tambayan Logo"
+                className="brand-logo-img"
               />
-            </svg>
+            </div>
+            <div className="brand-text-block">
+              <span className="brand-name" style={{ fontSize: '26px' }}>
+                Tambayan
+              </span>
+              <span className="brand-badge">Social Network for Everyone</span>
+            </div>
           </div>
 
-          {/* Dynamic 3D Collage Area (Exact Match to Screenshot) */}
+          {/* Dynamic 3D Collage Stage */}
           <div className="fb-collage-stage">
             {/* 1. Floating 😆 Haha Sticker */}
             <div className="fb-sticker fb-haha-sticker" title="Haha reaction">
               <span className="fb-emoji-char">😆</span>
             </div>
 
-            {/* 2. Top-Left Marketplace Craft Knot Card */}
+            {/* 2. Top-Left Marketplace Craft Card */}
             <div className="fb-card-float fb-card-marketplace">
               <div className="fb-icon-badge fb-badge-market">
                 <Store size={15} color="#fff" />
               </div>
               <img
                 src="/images/landing_craft.webp"
-                alt="Marketplace Knit Knot Pillow"
+                alt="Tambayan Marketplace"
                 className="fb-craft-photo"
               />
             </div>
 
-            {/* 3. Center Story Video Skater Card */}
+            {/* 3. Center Story Video Card */}
             <div className="fb-card-float fb-card-story-skater">
-              {/* Purple Timestamp Badge */}
+              {/* Timestamp Badge */}
               <div className="fb-timestamp-badge">
                 <Clock size={12} color="#fff" />
-                <span>16:45</span>
+                <span>LIVE</span>
               </div>
 
-              {/* Skater Action Photo */}
+              {/* Action Photo */}
               <img
                 src="/images/landing_skater.webp"
-                alt="Student Skater Story"
+                alt="Featured Story"
                 className="fb-skater-photo"
               />
 
@@ -256,14 +258,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
               </div>
             </div>
 
-            {/* 4. Bottom-Left Cinema Event Ticket Card */}
+            {/* 4. Bottom-Left Community Hangout Ticket Card */}
             <div className="fb-card-float fb-card-cinema-ticket">
               <div className="fb-icon-badge fb-badge-event">
                 <Bookmark size={15} color="#fff" />
               </div>
               <img
                 src="/images/landing_ticket.webp"
-                alt="Campus Cinema Tickets"
+                alt="Community Events"
                 className="fb-ticket-photo"
               />
               <div className="fb-ticket-skeleton">
@@ -272,22 +274,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
               </div>
             </div>
 
-            {/* 5. Bottom-Right Circular Avatar with Cyan Ring */}
+            {/* 5. Bottom-Right Circular Avatar with Teal Ring */}
             <div className="fb-avatar-ring-badge">
               <img
                 src="/images/landing_avatar_round.webp"
-                alt="Campus Student"
+                alt="Tambayan Member"
                 className="fb-avatar-ring-img"
               />
             </div>
           </div>
 
-          {/* Bold Headline (Exact Typography from Screenshot) */}
+          {/* Bold Headline */}
           <div className="fb-headline-wrapper">
             <h1 className="fb-headline-text">
-              Explore<br />
-              the things<br />
-              <span className="fb-headline-blue">you love</span>.
+              Connect, share &<br />
+              hangout with<br />
+              <span className="fb-headline-accent">everyone you love</span>.
             </h1>
           </div>
         </div>
@@ -296,54 +298,62 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
         <div className="fb-vertical-divider" />
 
         {/* ==============================================================
-            RIGHT PANE: User Profile Card / Login Form
+            RIGHT PANE: Tambayan Login Form / Recent Login Card
             ============================================================== */}
         <div className="fb-modern-right-pane">
-          {/* Top-Right Settings Gear */}
+          {/* Top-Right Theme Toggle */}
           <div className="fb-top-settings-anchor">
-            <button
-              className="fb-gear-btn"
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              title="Settings"
-            >
-              <Settings size={22} />
-            </button>
-
-            {isSettingsOpen && (
-              <div className="fb-settings-menu">
-                <button className="fb-settings-item" onClick={toggleTheme}>
-                  {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
-                  <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
-                </button>
-                <button
-                  className="fb-settings-item"
-                  onClick={() => {
-                    setViewMode(viewMode === 'profile' ? 'form' : 'profile');
-                    setIsSettingsOpen(false);
-                  }}
-                >
-                  <span>{viewMode === 'profile' ? 'Switch to Form View' : 'Switch to Profile View'}</span>
-                </button>
-              </div>
+            {onToggleTheme && (
+              <button
+                className="theme-toggle-btn"
+                onClick={onToggleTheme}
+                title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              >
+                {isDark ? <Sun size={19} /> : <Moon size={19} />}
+              </button>
             )}
           </div>
 
-          {/* VIEW MODE 1: Profile Action Card (Exact Match to Screenshot) */}
-          {viewMode === 'profile' ? (
+          {viewMode === 'profile' && savedUser ? (
+            /* Recent Real Login Card */
             <div className="fb-profile-action-box">
-              {/* Circular Avatar */}
-              <div className="fb-profile-avatar-circle">
-                <img
-                  src={savedUser.avatar}
-                  alt={savedUser.name}
-                  className="fb-profile-photo"
-                />
+              <div style={{ position: 'relative' }}>
+                <div className="fb-profile-avatar-circle">
+                  <img
+                    src={savedUser.avatar}
+                    alt={savedUser.name}
+                    className="fb-profile-photo"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveSavedProfile}
+                  title="Remove saved account"
+                  style={{
+                    position: 'absolute',
+                    top: '4px',
+                    right: '4px',
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    background: 'var(--surface-card)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: 'var(--shadow-sm)',
+                  }}
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
 
-              {/* Profile Name */}
               <h2 className="fb-profile-fullname">{savedUser.name}</h2>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '-16px', marginBottom: '20px' }}>
+                {savedUser.email}
+              </p>
 
-              {/* Action Buttons Stack */}
               <div className="fb-pill-buttons-stack">
                 <button
                   type="button"
@@ -351,15 +361,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
                   onClick={handleContinue}
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Connecting...' : 'Continue'}
+                  Continue as {savedUser.name.split(' ')[0]}
                 </button>
 
                 <button
                   type="button"
                   className="fb-pill-btn fb-pill-secondary"
-                  onClick={() => setViewMode('form')}
+                  onClick={() => {
+                    setEmail('');
+                    setPassword('');
+                    setViewMode('form');
+                  }}
                 >
-                  Use another profile
+                  Use another account
                 </button>
 
                 <button
@@ -384,25 +398,37 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
                 )}
               </div>
 
-              {/* Bottom Meta Branding */}
               <div className="fb-meta-footer-brand">
-                <span className="fb-meta-symbol">♾</span>
-                <span className="fb-meta-label">Meta</span>
+                <img
+                  src="/images/app_icon.webp"
+                  alt="Tambayan"
+                  style={{ width: '20px', height: '20px', borderRadius: '5px' }}
+                />
+                <span className="fb-meta-label">Tambayan Network</span>
               </div>
             </div>
           ) : (
-            /* VIEW MODE 2: Standard Credentials Login Card */
+            /* Standard Credentials Login Card */
             <div className="fb-form-action-box">
-              <button
-                type="button"
-                className="fb-back-profile-btn"
-                onClick={() => setViewMode('profile')}
-              >
-                <ArrowLeft size={16} />
-                <span>Back to profile</span>
-              </button>
+              {savedUser && (
+                <button
+                  type="button"
+                  className="fb-back-profile-btn"
+                  onClick={() => setViewMode('profile')}
+                >
+                  <ArrowLeft size={16} />
+                  <span>Back to saved account</span>
+                </button>
+              )}
 
-              <h2 className="fb-form-title">Log in to Tambayan</h2>
+              <div style={{ marginBottom: '20px' }}>
+                <h2 className="fb-form-title" style={{ marginBottom: '4px' }}>
+                  Log in to Tambayan
+                </h2>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+                  Welcome back! Enter your details to connect with your community.
+                </p>
+              </div>
 
               {loginError && (
                 <div className="fb-form-error-alert">
@@ -412,8 +438,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
 
               <form onSubmit={handleLogin} className="fb-modern-form">
                 <input
-                  type="text"
-                  placeholder="Email or student phone number"
+                  type="email"
+                  placeholder="Email address"
                   className="fb-modern-input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -448,16 +474,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
                   {isLoading ? 'Logging in...' : 'Log In'}
                 </button>
 
-                <a
-                  href="#forgot"
+                <button
+                  type="button"
                   className="fb-forgot-password-link"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    alert('Password reset link sent to registered campus email.');
-                  }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                  onClick={() => setForgotSent(true)}
                 >
-                  Forgotten password?
-                </a>
+                  {forgotSent
+                    ? '✓ Password reset instructions sent to your email'
+                    : 'Forgot password?'}
+                </button>
 
                 <div className="fb-form-divider" />
 
@@ -471,12 +497,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
                 >
                   Create new account
                 </button>
+
+                {onExploreGuest && (
+                  <button
+                    type="button"
+                    className="fb-guest-text-btn"
+                    onClick={onExploreGuest}
+                    style={{ textAlign: 'center', marginTop: '8px' }}
+                  >
+                    Explore Tambayan as Guest →
+                  </button>
+                )}
               </form>
 
-              {/* Bottom Meta Branding */}
+              {/* Bottom Tambayan Branding */}
               <div className="fb-meta-footer-brand" style={{ marginTop: '32px' }}>
-                <span className="fb-meta-symbol">♾</span>
-                <span className="fb-meta-label">Meta</span>
+                <img
+                  src="/images/app_icon.webp"
+                  alt="Tambayan"
+                  style={{ width: '20px', height: '20px', borderRadius: '5px' }}
+                />
+                <span className="fb-meta-label">Tambayan • Connect & Hangout</span>
               </div>
             </div>
           )}
@@ -484,31 +525,37 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
       </div>
 
       {/* ==============================================================
-          BOTTOM FOOTER: Horizontal Languages Selector (Exact Match)
+          BOTTOM FOOTER: Horizontal Languages Selector
           ============================================================== */}
       <footer className="fb-modern-footer">
         <div className="fb-languages-center-list">
-          <span className="fb-lang-current">English (US)</span>
-          <a href="#fil" className="fb-lang-link">Filipino</a>
-          <a href="#ceb" className="fb-lang-link">Bisaya</a>
-          <a href="#es" className="fb-lang-link">Español</a>
-          <a href="#ja" className="fb-lang-link">日本語</a>
-          <a href="#ko" className="fb-lang-link">한국어</a>
-          <a href="#zh" className="fb-lang-link">中文(简体)</a>
-          <a href="#more" className="fb-lang-link fb-more-langs">More languages...</a>
+          {languages.map((lang) => (
+            <button
+              key={lang}
+              type="button"
+              onClick={() => setActiveLang(lang)}
+              className={activeLang === lang ? 'fb-lang-current' : 'fb-lang-link'}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px' }}
+            >
+              {lang}
+            </button>
+          ))}
+          <span style={{ color: 'var(--text-muted)', fontSize: '12px', marginLeft: '8px' }}>
+            © {new Date().getFullYear()} Tambayan
+          </span>
         </div>
       </footer>
 
       {/* ==============================================================
-          FACEBOOK-STYLE SIGN UP MODAL DIALOG
+          TAMBAYAN SIGN UP MODAL DIALOG
           ============================================================== */}
       {isSignUpOpen && (
         <div className="modal-backdrop" onClick={() => setIsSignUpOpen(false)}>
           <div className="fb-signup-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="fb-signup-header">
               <div>
-                <h2 className="fb-signup-title">Sign Up</h2>
-                <p className="fb-signup-subtitle">It's quick and easy.</p>
+                <h2 className="fb-signup-title">Join Tambayan</h2>
+                <p className="fb-signup-subtitle">It's quick, free, and open to everyone.</p>
               </div>
               <button className="fb-close-modal-btn" onClick={() => setIsSignUpOpen(false)}>
                 <X size={20} />
@@ -536,7 +583,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
                 />
                 <input
                   type="text"
-                  placeholder="Surname"
+                  placeholder="Last name"
                   className="fb-input-sm"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
@@ -546,7 +593,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
 
               <input
                 type="email"
-                placeholder="Student email address"
+                placeholder="Email address"
                 className="fb-input-sm"
                 value={regEmail}
                 onChange={(e) => setRegEmail(e.target.value)}
@@ -562,25 +609,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
                 required
                 minLength={6}
               />
-
-              {/* Campus select */}
-              <div>
-                <label className="fb-field-label">University / Campus</label>
-                <select
-                  value={campus}
-                  onChange={(e) => setCampus(e.target.value)}
-                  className="fb-input-sm"
-                >
-                  <option value="UP Diliman">UP Diliman</option>
-                  <option value="UP Manila">UP Manila</option>
-                  <option value="Ateneo de Manila">Ateneo de Manila University</option>
-                  <option value="De La Salle University">De La Salle University</option>
-                  <option value="UST Manila">University of Santo Tomas</option>
-                  <option value="Polytechnic University of the Philippines">PUP Manila</option>
-                  <option value="Mapua University">Mapúa University</option>
-                  <option value="Other Campus">Other University / College</option>
-                </select>
-              </div>
 
               {/* Date of Birth */}
               <div>
@@ -656,18 +684,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginSuccess, onExpl
               </div>
 
               <p className="fb-policy-text">
-                People who use our service may have uploaded your campus contact info to Tambayan.{' '}
-                <a href="#terms">Learn more</a>.
-              </p>
-
-              <p className="fb-policy-text">
-                By clicking Sign Up, you agree to our <a href="#terms">Terms</a>,{' '}
-                <a href="#privacy">Privacy Policy</a> and <a href="#cookies">Cookies Policy</a>.
+                By clicking Sign Up, you agree to Tambayan's Terms, Privacy Policy, and Community Guidelines.
               </p>
 
               <div style={{ textAlign: 'center', marginTop: '10px' }}>
                 <button type="submit" className="fb-btn-submit-signup" disabled={isSigningUp}>
-                  {isSigningUp ? 'Creating Account...' : 'Sign Up'}
+                  {isSigningUp ? 'Creating Account...' : 'Create Account'}
                 </button>
               </div>
             </form>

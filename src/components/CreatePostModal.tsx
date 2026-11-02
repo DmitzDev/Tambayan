@@ -2,12 +2,18 @@ import React, { useState } from 'react';
 import { X, Image as ImageIcon, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { UserProfile } from '../types';
+import { convertToWebP } from '../utils/webpConverter';
 
 interface CreatePostModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: UserProfile;
-  onCreatePost: (content: string, image?: string, privacy?: 'Public' | 'Friends' | 'Only me') => void;
+  onCreatePost: (
+    content: string,
+    image?: string,
+    privacy?: 'Public' | 'Friends' | 'Only me',
+    tags?: string[]
+  ) => void;
 }
 
 export const CreatePostModal: React.FC<CreatePostModalProps> = ({
@@ -19,17 +25,22 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
   const [content, setContent] = useState('');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [privacy, setPrivacy] = useState<'Public' | 'Friends' | 'Only me'>('Public');
+  const [isProcessingImg, setIsProcessingImg] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleImagePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setAttachedImage(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+      setIsProcessingImg(true);
+      try {
+        const webp = await convertToWebP(file, 1200, 1200, 0.82);
+        setAttachedImage(webp);
+      } catch {
+        // Fallback silent or ignore
+      } finally {
+        setIsProcessingImg(false);
+      }
     }
   };
 
@@ -37,7 +48,8 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
     e.preventDefault();
     if (!content.trim() && !attachedImage) return;
 
-    onCreatePost(content.trim(), attachedImage || undefined, privacy);
+    const tags = content.match(/#[a-zA-Z0-9_]+/g)?.map((t) => t.substring(1)) || [];
+    onCreatePost(content.trim(), attachedImage || undefined, privacy, tags);
     setContent('');
     setAttachedImage(null);
     onClose();
@@ -56,7 +68,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
         <div className="modal-header">
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Sparkles size={18} color="var(--primary)" />
-            <span>Create Campus Post</span>
+            <span>Create Post</span>
           </h3>
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }}>
             <X size={20} />
@@ -75,8 +87,8 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
                   className="tool-chip"
                   style={{ border: 'none', padding: '2px 8px', fontSize: '11px' }}
                 >
-                  <option value="Public">🌍 Public to Campus</option>
-                  <option value="Friends">👥 Friends Only</option>
+                  <option value="Public">🌍 Public</option>
+                  <option value="Friends">👥 Friends</option>
                   <option value="Only me">🔒 Only Me</option>
                 </select>
               </div>
@@ -84,7 +96,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
 
             <textarea
               className="create-textarea"
-              placeholder="Share thoughts, upcoming campus events, or discussion topics..."
+              placeholder="What's on your mind? Share updates, photos, or stories..."
               rows={4}
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -104,12 +116,32 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
               <label className="tool-chip" style={{ cursor: 'pointer' }}>
                 <ImageIcon size={16} color="var(--secondary)" />
-                <span>Upload Photo (.webp)</span>
-                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImagePick} />
+                <span>{isProcessingImg ? 'Converting to .webp...' : 'Upload Photo (.webp)'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleImagePick}
+                  disabled={isProcessingImg}
+                />
               </label>
+
+              {['#TambayanPH', '#CoffeeLovers', '#WeekendVibes'].map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  className="tool-chip"
+                  style={{ fontSize: '11px', padding: '4px 10px' }}
+                  onClick={() =>
+                    setContent((prev) => (prev.includes(tag) ? prev : `${prev} ${tag}`.trim()))
+                  }
+                >
+                  + {tag}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -120,7 +152,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
             <button
               type="submit"
               className="btn-create-post"
-              disabled={!content.trim() && !attachedImage}
+              disabled={(!content.trim() && !attachedImage) || isProcessingImg}
             >
               Publish Now
             </button>

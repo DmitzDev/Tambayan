@@ -6,9 +6,13 @@ import {
   Globe,
   Users,
   Lock,
-  Pin,
+  Bookmark,
+  Trash2,
+  Check,
   X,
   Sparkles,
+  Flame,
+  Clock,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Post, UserAccount, ReactionType, Story } from '../types';
@@ -16,6 +20,7 @@ import { ReactionsBar } from './ReactionsBar';
 import { CommentThread } from './CommentThread';
 import { StoriesBar } from './StoriesBar';
 import { convertToWebP } from '../utils/webpConverter';
+import { formatRelativeTime } from '../utils/timeUtils';
 
 interface FeedViewProps {
   posts: Post[];
@@ -29,6 +34,9 @@ interface FeedViewProps {
     privacy?: 'Public' | 'Friends' | 'Only me',
     tags?: string[]
   ) => void;
+  onDeletePost?: (postId: string) => void;
+  savedPostIds?: string[];
+  onToggleSavePost?: (postId: string) => void;
   onOpenAuth: () => void;
   selectedTag: string | null;
   onSelectTag: (tag: string | null) => void;
@@ -41,6 +49,9 @@ export const FeedView: React.FC<FeedViewProps> = ({
   onToggleReaction,
   onAddComment,
   onCreatePost,
+  onDeletePost,
+  savedPostIds = [],
+  onToggleSavePost,
   onOpenAuth,
   selectedTag,
   onSelectTag,
@@ -50,6 +61,9 @@ export const FeedView: React.FC<FeedViewProps> = ({
   const [privacy, setPrivacy] = useState<'Public' | 'Friends' | 'Only me'>('Public');
   const [isProcessingImg, setIsProcessingImg] = useState(false);
   const [openCommentsPostId, setOpenCommentsPostId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'latest' | 'popular'>('latest');
+  const [copiedPostId, setCopiedPostId] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -89,9 +103,30 @@ export const FeedView: React.FC<FeedViewProps> = ({
     });
   };
 
-  const filteredPosts = selectedTag
+  const tagFilteredPosts = selectedTag
     ? posts.filter((p) => p.tags?.some((t) => t.toLowerCase() === selectedTag.toLowerCase()))
     : posts;
+
+  const filteredPosts = [...tagFilteredPosts].sort((a, b) => {
+    if (sortBy === 'popular') {
+      const scoreA =
+        Object.values(a.reactions || {}).reduce((acc, v) => acc + v, 0) +
+        (a.comments ? a.comments.length * 2 : 0);
+      const scoreB =
+        Object.values(b.reactions || {}).reduce((acc, v) => acc + v, 0) +
+        (b.comments ? b.comments.length * 2 : 0);
+      return scoreB - scoreA;
+    }
+    return b.createdAt - a.createdAt;
+  });
+
+  const handleSharePost = (postId: string) => {
+    navigator.clipboard?.writeText(window.location.href);
+    setCopiedPostId(postId);
+    setTimeout(() => {
+      setCopiedPostId((prev) => (prev === postId ? null : prev));
+    }, 2200);
+  };
 
   return (
     <div className="feed-stream-col">
@@ -149,8 +184,8 @@ export const FeedView: React.FC<FeedViewProps> = ({
             className="create-textarea"
             placeholder={
               currentUser
-                ? `What's on your mind, ${currentUser.displayName.split(' ')[0]}?`
-                : "Sign in to share updates with Tambayan..."
+                ? `What's on your mind, ${currentUser.displayName.split(' ')[0]}? (Use #tags to categorize)`
+                : 'Sign in to share updates with Tambayan...'
             }
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -171,7 +206,7 @@ export const FeedView: React.FC<FeedViewProps> = ({
         )}
 
         <div className="create-post-footer">
-          <div className="create-post-tools">
+          <div className="create-post-tools" style={{ flexWrap: 'wrap' }}>
             <label className="tool-chip" style={{ cursor: 'pointer' }}>
               <ImageIcon size={16} color="var(--secondary)" />
               <span>{isProcessingImg ? 'Converting to .webp...' : 'Photo (.webp)'}</span>
@@ -207,6 +242,48 @@ export const FeedView: React.FC<FeedViewProps> = ({
         </div>
       </form>
 
+      {/* Feed Sort Header */}
+      {filteredPosts.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 4px',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '13px',
+              fontWeight: 700,
+              color: 'var(--text-muted)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            News Feed ({filteredPosts.length})
+          </span>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button
+              type="button"
+              onClick={() => setSortBy('latest')}
+              className={`sort-pill-btn ${sortBy === 'latest' ? 'active' : ''}`}
+            >
+              <Clock size={13} />
+              <span>Latest</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortBy('popular')}
+              className={`sort-pill-btn ${sortBy === 'popular' ? 'active' : ''}`}
+            >
+              <Flame size={13} />
+              <span>Top Activity</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 3. Real-time Live Posts List */}
       {filteredPosts.length === 0 ? (
         <div
@@ -226,7 +303,7 @@ export const FeedView: React.FC<FeedViewProps> = ({
           />
           <h3 style={{ fontSize: '18px', fontWeight: 800 }}>No posts yet in this feed</h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '380px', margin: '8px auto 20px' }}>
-            Be the very first one to publish a post, share a campus story, or start a discussion!
+            Be the first to share an update, post a photo, or start a conversation with everyone!
           </p>
           {!currentUser ? (
             <button className="btn-create-post" onClick={onOpenAuth} style={{ margin: '0 auto' }}>
@@ -238,6 +315,8 @@ export const FeedView: React.FC<FeedViewProps> = ({
         filteredPosts.map((post) => {
           const userReaction = currentUser ? post.userReactions[currentUser.uid] : undefined;
           const isCommentsOpen = openCommentsPostId === post.id;
+          const isSaved = savedPostIds.includes(post.id);
+          const isOwner = currentUser?.uid && currentUser.uid === post.authorId;
 
           return (
             <article key={post.id} className="post-card">
@@ -248,7 +327,7 @@ export const FeedView: React.FC<FeedViewProps> = ({
                   <div className="post-author-names">
                     <span className="author-title">{post.authorName}</span>
                     <span className="author-handle-time">
-                      {new Date(post.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} •{' '}
+                      {formatRelativeTime(post.createdAt)} •{' '}
                       <span className="privacy-badge">
                         {post.privacy === 'Public' ? (
                           <Globe size={11} />
@@ -262,14 +341,43 @@ export const FeedView: React.FC<FeedViewProps> = ({
                     </span>
                   </div>
                 </div>
+
+                {/* Right Action Icons (Bookmark & Owner Delete) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {onToggleSavePost && (
+                    <button
+                      type="button"
+                      className={`post-icon-action ${isSaved ? 'active' : ''}`}
+                      onClick={() => onToggleSavePost(post.id)}
+                      title={isSaved ? 'Remove from Saved' : 'Bookmark Post'}
+                    >
+                      <Bookmark size={17} fill={isSaved ? 'currentColor' : 'none'} />
+                    </button>
+                  )}
+
+                  {isOwner && onDeletePost && (
+                    <button
+                      type="button"
+                      className="post-icon-action danger"
+                      onClick={() => onDeletePost(post.id)}
+                      title="Delete your post"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Content */}
               <p className="post-content-text">{post.content}</p>
 
-              {/* Image (.webp) */}
+              {/* Image (.webp) with Lightbox */}
               {post.imageWebP && (
-                <div className="post-media-container">
+                <div
+                  className="post-media-container"
+                  onClick={() => setLightboxImage(post.imageWebP || null)}
+                  style={{ cursor: 'zoom-in' }}
+                >
                   <img src={post.imageWebP} alt="Post asset" className="post-media-img" loading="lazy" />
                 </div>
               )}
@@ -304,7 +412,7 @@ export const FeedView: React.FC<FeedViewProps> = ({
                 />
 
                 <button
-                  className="post-action-btn"
+                  className={`post-action-btn ${isCommentsOpen ? 'liked' : ''}`}
                   onClick={() => setOpenCommentsPostId(isCommentsOpen ? null : post.id)}
                 >
                   <MessageCircle size={18} />
@@ -313,13 +421,19 @@ export const FeedView: React.FC<FeedViewProps> = ({
 
                 <button
                   className="post-action-btn"
-                  onClick={() => {
-                    navigator.clipboard.writeText(window.location.href);
-                    alert('Post link copied to clipboard!');
-                  }}
+                  onClick={() => handleSharePost(post.id)}
                 >
-                  <Share2 size={18} />
-                  <span>Share</span>
+                  {copiedPostId === post.id ? (
+                    <>
+                      <Check size={18} color="var(--success)" />
+                      <span style={{ color: 'var(--success)' }}>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Share2 size={18} />
+                      <span>Share</span>
+                    </>
+                  )}
                 </button>
               </div>
 
@@ -336,6 +450,52 @@ export const FeedView: React.FC<FeedViewProps> = ({
             </article>
           );
         })
+      )}
+
+      {/* Lightbox Image Modal */}
+      {lightboxImage && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setLightboxImage(null)}
+          style={{ background: 'rgba(0, 0, 0, 0.88)', zIndex: 1100 }}
+        >
+          <div
+            style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightboxImage}
+              alt="Enlarged photo"
+              style={{
+                maxWidth: '90vw',
+                maxHeight: '88vh',
+                borderRadius: 'var(--radius-md)',
+                objectFit: 'contain',
+                boxShadow: 'var(--shadow-lg)',
+              }}
+            />
+            <button
+              onClick={() => setLightboxImage(null)}
+              style={{
+                position: 'absolute',
+                top: '-14px',
+                right: '-14px',
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: 'var(--primary)',
+                color: '#FFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: 'var(--shadow-md)',
+              }}
+              title="Close preview"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

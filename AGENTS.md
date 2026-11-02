@@ -1,6 +1,6 @@
 # Tambayan Web Application
 
-This is the web application for **Tambayan** (Campus Community Social Network), engineered with React 19, Vite, TypeScript, and Firebase Realtime Firestore & Authentication.
+This is the web application for **Tambayan** (Social Network for Everyone), engineered with React 19, Vite, TypeScript, and Firebase Realtime Firestore & Authentication.
 
 ## Core Rules & Architecture
 
